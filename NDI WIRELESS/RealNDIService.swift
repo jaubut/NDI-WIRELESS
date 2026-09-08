@@ -103,11 +103,13 @@ final class RealNDIService: NDIService {
                 }
             }
 
-            continuation.onTermination = { [weak self] _ in
+            continuation.onTermination = { @Sendable [weak self] _ in
                 task.cancel()
-                if let finder = self?.findInstance {
-                    NDIlib_find_destroy(finder)
-                    self?.findInstance = nil
+                Task { @MainActor [weak self] in
+                    if let finder = self?.findInstance {
+                        NDIlib_find_destroy(finder)
+                        self?.findInstance = nil
+                    }
                 }
             }
         }
@@ -185,9 +187,11 @@ final class RealNDIService: NDIService {
                 continuation.finish()
             }
 
-            continuation.onTermination = { [weak self] _ in
+            continuation.onTermination = { @Sendable [weak self] _ in
                 task.cancel()
-                self?.cleanupReceiver(for: source.id)
+                Task { @MainActor [weak self] in
+                    self?.cleanupReceiver(for: source.id)
+                }
             }
         }
     }

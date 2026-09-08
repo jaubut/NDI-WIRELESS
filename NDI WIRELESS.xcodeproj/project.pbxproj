@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F3D516832F567BD90005168B /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F3D516822F567BD90005168B /* Accelerate.framework */; };
+		F3D516852F567BE70005168B /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F3D516842F567BE70005168B /* VideoToolbox.framework */; };
+		F3D516872F5681E90005168B /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = F3D516862F5681E90005168B /* libc++.tbd */; };
+		F3D516892F5681F30005168B /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F3D516882F5681F30005168B /* CoreMedia.framework */; };
+		F3D5168B2F5682010005168B /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F3D5168A2F5682010005168B /* AudioToolbox.framework */; };
+		F3D516932F5731680005168B /* HistogramProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D516922F5731680005168B /* HistogramProcessor.swift */; };
+		F3D516952F5731790005168B /* HistogramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D516942F5731790005168B /* HistogramView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F375C4202F5663B300A55EE7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +37,14 @@
 		F375C4102F5663B200A55EE7 /* NDI WIRELESS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NDI WIRELESS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F375C41F2F5663B300A55EE7 /* NDI WIRELESSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NDI WIRELESSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F375C4292F5663B300A55EE7 /* NDI WIRELESSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NDI WIRELESSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F3D5167E2F5675A80005168B /* libndi_ios.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libndi_ios.a; path = "../../../../Library/NDI SDK for Apple/lib/iOS/libndi_ios.a"; sourceTree = "<group>"; };
+		F3D516822F567BD90005168B /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		F3D516842F567BE70005168B /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/VideoToolbox.framework; sourceTree = DEVELOPER_DIR; };
+		F3D516862F5681E90005168B /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/usr/lib/libc++.tbd"; sourceTree = DEVELOPER_DIR; };
+		F3D516882F5681F30005168B /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/CoreMedia.framework; sourceTree = DEVELOPER_DIR; };
+		F3D5168A2F5682010005168B /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/AudioToolbox.framework; sourceTree = DEVELOPER_DIR; };
+		F3D516922F5731680005168B /* HistogramProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistogramProcessor.swift; sourceTree = "<group>"; };
+		F3D516942F5731790005168B /* HistogramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistogramView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +70,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F3D5168B2F5682010005168B /* AudioToolbox.framework in Frameworks */,
+				F3D516892F5681F30005168B /* CoreMedia.framework in Frameworks */,
+				F3D516872F5681E90005168B /* libc++.tbd in Frameworks */,
+				F3D516852F567BE70005168B /* VideoToolbox.framework in Frameworks */,
+				F3D516832F567BD90005168B /* Accelerate.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,7 +101,10 @@
 				F375C4122F5663B200A55EE7 /* NDI WIRELESS */,
 				F375C4222F5663B300A55EE7 /* NDI WIRELESSTests */,
 				F375C42C2F5663B300A55EE7 /* NDI WIRELESSUITests */,
+				F3D5167D2F5675A80005168B /* Frameworks */,
 				F375C4112F5663B200A55EE7 /* Products */,
+				F3D516922F5731680005168B /* HistogramProcessor.swift */,
+				F3D516942F5731790005168B /* HistogramView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +116,19 @@
 				F375C4292F5663B300A55EE7 /* NDI WIRELESSUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F3D5167D2F5675A80005168B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F3D5168A2F5682010005168B /* AudioToolbox.framework */,
+				F3D516882F5681F30005168B /* CoreMedia.framework */,
+				F3D516862F5681E90005168B /* libc++.tbd */,
+				F3D516842F567BE70005168B /* VideoToolbox.framework */,
+				F3D516822F567BD90005168B /* Accelerate.framework */,
+				F3D5167E2F5675A80005168B /* libndi_ios.a */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -236,6 +275,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F3D516952F5731790005168B /* HistogramView.swift in Sources */,
+				F3D516932F5731680005168B /* HistogramProcessor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,10 +431,16 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7AS44KHR4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "\"/Library/NDI SDK for Apple/include\"";
+				INFOPLIST_FILE = "NDI-WIRELESS-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "TLS Viewer";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "NDI WIRELESS needs local network access to discover NDI sources.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -407,17 +454,25 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"/Library/NDI SDK for Apple/lib/iOS\"",
+					"\"$(LOCAL_LIBRARY_DIR)/NDI\\ SDK\\ for\\ Apple/include\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"/Library/NDI SDK for Apple/lib/iOS/libndi_ios.a\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "TechLabStudio.NDI-WIRELESS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NDI_ENABLED";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "NDI WIRELESS/NDI-WIRELESS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -432,10 +487,16 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7AS44KHR4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "\"/Library/NDI SDK for Apple/include\"";
+				INFOPLIST_FILE = "NDI-WIRELESS-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "TLS Viewer";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "NDI WIRELESS needs local network access to discover NDI sources.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -449,17 +510,25 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"/Library/NDI SDK for Apple/lib/iOS\"",
+					"\"$(LOCAL_LIBRARY_DIR)/NDI\\ SDK\\ for\\ Apple/include\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"/Library/NDI SDK for Apple/lib/iOS/libndi_ios.a\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "TechLabStudio.NDI-WIRELESS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) NDI_ENABLED";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "NDI WIRELESS/NDI-WIRELESS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
