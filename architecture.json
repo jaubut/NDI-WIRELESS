@@ -1,0 +1,404 @@
+{
+  "generatedAt": "2026-09-08",
+  "repo": "ndi-wireless",
+  "intent": "TLS Viewer (NDI Wireless) — iOS/iPadOS NDI monitor for wireless on-set video: discovers NDI sources on the network, shows a single monitor or a multi-view grid, with per-frame monitor tools (histogram, false colour); a mock NDI service stands in on the simulator. Correctness bar: frames render at source rate without leaking buffers, tools are pure per-frame processors, discovery survives network changes.",
+  "targets": [
+    {
+      "name": "ios",
+      "adapter": "swiftui",
+      "root": ".",
+      "cap": 600,
+      "modules": [
+        {
+          "path": "HistogramProcessor.swift",
+          "lines": 102,
+          "kind": "lib",
+          "exports": [
+            "HistogramData",
+            "HistogramProcessor"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "HistogramView.swift",
+          "lines": 83,
+          "kind": "view",
+          "exports": [
+            "HistogramView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/ContentView.swift",
+          "lines": 98,
+          "kind": "view",
+          "exports": [
+            "ContentView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [
+            ".single",
+            ".multi"
+          ],
+          "sheets": 1
+        },
+        {
+          "path": "NDI WIRELESS/FalseColorProcessor.swift",
+          "lines": 113,
+          "kind": "lib",
+          "exports": [
+            "FalseColorProcessor",
+            "process()"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/MockNDIService.swift",
+          "lines": 123,
+          "kind": "lib",
+          "exports": [
+            "MockNDIService",
+            "discoverSources()",
+            "startReceiving()",
+            "stopReceiving()",
+            "stopAll()"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/MonitorTool.swift",
+          "lines": 30,
+          "kind": "lib",
+          "exports": [
+            "MonitorTool"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [
+            ".falseColor",
+            ".histogram"
+          ],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/MonitorViewModel.swift",
+          "lines": 156,
+          "kind": "lib",
+          "exports": [
+            "LayoutMode",
+            "MonitorViewModel",
+            "startDiscovery()",
+            "stopDiscovery()",
+            "toggleSource()",
+            "startReceiving()",
+            "stopReceiving()",
+            "toggleTool()",
+            "updateHistogram()",
+            "selectPrimary()",
+            "stopAll()"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/MultiViewGrid.swift",
+          "lines": 56,
+          "kind": "view",
+          "exports": [
+            "MultiViewGrid"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/NDIService.swift",
+          "lines": 24,
+          "kind": "lib",
+          "exports": [
+            "discoverSources()",
+            "startReceiving()",
+            "stopReceiving()",
+            "stopAll()"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/NDISource.swift",
+          "lines": 15,
+          "kind": "lib",
+          "exports": [
+            "NDISource"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/NDI_WIRELESSApp.swift",
+          "lines": 22,
+          "kind": "lib",
+          "exports": [
+            "NDI_WIRELESSApp"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/Real​NDIService​.swift",
+          "lines": 285,
+          "kind": "lib",
+          "exports": [
+            "RealNDIService",
+            "discoverSources()",
+            "startReceiving()",
+            "stopReceiving()",
+            "stopAll()"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/SingleMonitorView.swift",
+          "lines": 101,
+          "kind": "view",
+          "exports": [
+            "SingleMonitorView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/SourceDiscoveryView.swift",
+          "lines": 47,
+          "kind": "view",
+          "exports": [
+            "SourceDiscoveryView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/ToolboxView.swift",
+          "lines": 39,
+          "kind": "view",
+          "exports": [
+            "ToolboxView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        },
+        {
+          "path": "NDI WIRELESS/VideoFrameView.swift",
+          "lines": 50,
+          "kind": "view",
+          "exports": [
+            "VideoFrameView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0
+        }
+      ],
+      "fanIn": {
+        "SourceDiscoveryView": {
+          "module": "NDI WIRELESS/SourceDiscoveryView.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "SingleMonitorView": {
+          "module": "NDI WIRELESS/SingleMonitorView.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "MultiViewGrid": {
+          "module": "NDI WIRELESS/MultiViewGrid.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "ToolboxView": {
+          "module": "NDI WIRELESS/ToolboxView.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "LayoutMode": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "MockNDIService": {
+          "module": "NDI WIRELESS/MockNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift",
+            "NDI WIRELESS/NDI_WIRELESSApp.swift",
+            "NDI WIRELESS/Real​NDIService​.swift"
+          ]
+        },
+        "MonitorViewModel": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift",
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "NDISource": {
+          "module": "NDI WIRELESS/NDISource.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/Real​NDIService​.swift"
+          ]
+        },
+        "FalseColorProcessor": {
+          "module": "NDI WIRELESS/FalseColorProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "HistogramProcessor": {
+          "module": "HistogramProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "VideoFrameView": {
+          "module": "NDI WIRELESS/VideoFrameView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "ContentView": {
+          "module": "NDI WIRELESS/ContentView.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "RealNDIService": {
+          "module": "NDI WIRELESS/Real​NDIService​.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "NDI_WIRELESSApp": {
+          "module": "NDI WIRELESS/NDI_WIRELESSApp.swift",
+          "callers": [
+            "NDI WIRELESS/Real​NDIService​.swift"
+          ]
+        },
+        "MonitorTool": {
+          "module": "NDI WIRELESS/MonitorTool.swift",
+          "callers": [
+            "NDI WIRELESS/ToolboxView.swift"
+          ]
+        },
+        "HistogramView": {
+          "module": "HistogramView.swift",
+          "callers": [
+            "NDI WIRELESS/VideoFrameView.swift"
+          ]
+        }
+      }
+    }
+  ],
+  "refs": []
+}

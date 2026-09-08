@@ -6,61 +6,75 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @State var viewModel: MonitorViewModel
+    @State private var showSourcePicker = false
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationStack {
+            Group {
+                if viewModel.selectedSources.isEmpty {
+                    SourceDiscoveryView(viewModel: viewModel)
+                } else {
+                    switch viewModel.layoutMode {
+                    case .single:
+                        SingleMonitorView(viewModel: viewModel)
+                    case .multi:
+                        MultiViewGrid(viewModel: viewModel)
                     }
                 }
-                .onDelete(perform: deleteItems)
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
             .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+                #if os(iOS)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showSourcePicker = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                    }
                 }
-#endif
+                #else
                 ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                    Button {
+                        showSourcePicker = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                }
+                #endif
+
+                if !viewModel.selectedSources.isEmpty {
+                    ToolbarItem(placement: .automatic) {
+                        Picker("Layout", selection: $viewModel.layoutMode) {
+                            Image(systemName: "rectangle.fill")
+                                .tag(LayoutMode.single)
+                            Image(systemName: "rectangle.grid.2x2.fill")
+                                .tag(LayoutMode.multi)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 100)
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            .sheet(isPresented: $showSourcePicker) {
+                NavigationStack {
+                    SourceDiscoveryView(viewModel: viewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showSourcePicker = false }
+                            }
+                        }
+                }
             }
         }
+        .task {
+            viewModel.startDiscovery()
+        }
+        .preferredColorScheme(.dark)
     }
 }
 
 #Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    ContentView(viewModel: MonitorViewModel(service: MockNDIService()))
 }

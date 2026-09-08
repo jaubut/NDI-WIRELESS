@@ -1,0 +1,12 @@
+{
+  "repo": "ndi-wireless",
+  "intent": "TLS Viewer (NDI Wireless) — iOS/iPadOS NDI monitor for wireless on-set video: discovers NDI sources on the network, shows a single monitor or a multi-view grid, with per-frame monitor tools (histogram, false colour); a mock NDI service stands in on the simulator. Correctness bar: frames render at source rate without leaking buffers, tools are pure per-frame processors, discovery survives network changes.",
+  "targets": [
+    {
+      "name": "ios",
+      "adapter": "swiftui",
+      "root": ".",
+      "cap": 600
+    }
+  ]
+}
