@@ -6,10 +6,15 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ContentView: View {
     @State var viewModel: MonitorViewModel
     @State private var showSourcePicker = false
+    @State private var showUI = true
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -25,6 +30,22 @@ struct ContentView: View {
                     }
                 }
             }
+            .overlay(alignment: .bottom) {
+                if showUI && !viewModel.selectedSources.isEmpty {
+                    ToolboxView(viewModel: viewModel)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .onTapGesture {
+                guard !viewModel.selectedSources.isEmpty else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showUI.toggle()
+                }
+            }
+            .toolbar(showUI ? .visible : .hidden, for: .navigationBar)
+            #if os(iOS)
+            .statusBarHidden(!showUI)
+            #endif
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .topBarLeading) {
@@ -71,7 +92,22 @@ struct ContentView: View {
         .task {
             viewModel.startDiscovery()
         }
+        // Keep the screen awake while a source is being monitored; an iPad sleeping
+        // in front of a client mid-take is a failure mode, not a battery saver.
+        .onChange(of: viewModel.selectedSources.isEmpty, initial: true) { _, isEmpty in
+            setKeepAwake(!isEmpty)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { setKeepAwake(!viewModel.selectedSources.isEmpty) }
+        }
+        .onDisappear { setKeepAwake(false) }
         .preferredColorScheme(.dark)
+    }
+
+    private func setKeepAwake(_ on: Bool) {
+        #if canImport(UIKit)
+        UIApplication.shared.isIdleTimerDisabled = on
+        #endif
     }
 }
 

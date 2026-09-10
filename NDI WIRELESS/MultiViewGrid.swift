@@ -26,7 +26,10 @@ struct MultiViewGrid: View {
                 ForEach(activeSources) { source in
                     VideoFrameView(
                         frame: viewModel.frames[source.id],
-                        sourceName: source.name
+                        sourceName: source.name,
+                        falseColorProcessor: viewModel.isFalseColorActive
+                            ? viewModel.falseColorProcessor : nil,
+                        histogramData: viewModel.histogramData[source.id]
                     )
                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
                     .overlay(alignment: .bottomLeading) {
@@ -37,8 +40,8 @@ struct MultiViewGrid: View {
                             .foregroundStyle(.white)
                             .padding(4)
                     }
-                    .onTapGesture {
-                        viewModel.selectPrimary(source)
+                    .onChange(of: viewModel.frames[source.id]) {
+                        viewModel.updateHistogram(for: source.id)
                     }
                 }
             }

@@ -18,7 +18,7 @@ struct HistogramData {
 final class HistogramProcessor: @unchecked Sendable {
     /// Compute RGB histogram bins from a CGImage.
     /// Returns nil if the image can't be converted to an ARGB8888 vImage buffer.
-    func compute(_ image: CGImage) -> HistogramData? {
+    nonisolated func compute(_ image: CGImage) -> HistogramData? {
         // Create a vImage buffer from the CGImage
         guard var format = vImage_CGImageFormat(cgImage: image) else { return nil }
 

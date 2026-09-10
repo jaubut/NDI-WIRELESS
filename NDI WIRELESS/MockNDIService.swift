@@ -74,7 +74,7 @@ final class MockNDIService: NDIService {
 
     // MARK: - Test Pattern Generation (CoreGraphics only)
 
-    private static func generateTestPattern(
+    private nonisolated static func generateTestPattern(
         width: Int, height: Int, hue: CGFloat
     ) -> CGImage? {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -101,7 +101,7 @@ final class MockNDIService: NDIService {
         return ctx.makeImage()
     }
 
-    private static func colorFromHSB(hue: CGFloat, saturation: CGFloat, brightness: CGFloat) -> CGColor {
+    private nonisolated static func colorFromHSB(hue: CGFloat, saturation: CGFloat, brightness: CGFloat) -> CGColor {
         // HSB to RGB conversion
         let c = brightness * saturation
         let x = c * (1 - abs((hue * 6).truncatingRemainder(dividingBy: 2) - 1))

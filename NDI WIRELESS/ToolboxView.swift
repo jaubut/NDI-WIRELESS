@@ -26,8 +26,7 @@ struct ToolboxView: View {
                         viewModel.activeTools.contains(tool) ? .yellow : .white
                     )
                 }
-                .disabled(tool != .falseColor)
-                .opacity(tool != .falseColor ? 0.4 : 1.0)
+
             }
         }
         .padding(.horizontal, 24)
