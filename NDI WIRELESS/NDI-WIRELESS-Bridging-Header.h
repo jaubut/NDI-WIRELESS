@@ -11,6 +11,6 @@
 // Link as static library (iOS uses libndi_ios.a)
 #define PROCESSINGNDILIB_STATIC
 
-#include "Processing.NDI.Lib.h"
+#include "/Library/NDI SDK for Apple/include/Processing.NDI.Lib.h"
 
 #endif /* NDI_WIRELESS_Bridging_Header_h */

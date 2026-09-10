@@ -11,7 +11,11 @@ import SwiftUI
 struct NDI_WIRELESSApp: App {
     var body: some Scene {
         WindowGroup {
+            #if NDI_ENABLED
+            ContentView(viewModel: MonitorViewModel(service: RealNDIService()))
+            #else
             ContentView(viewModel: MonitorViewModel(service: MockNDIService()))
+            #endif
         }
     }
 }

@@ -23,12 +23,17 @@ final class MonitorViewModel {
     var layoutMode: LayoutMode = .multi
     var primarySourceID: String?
     var isDiscovering = false
+    var activeTools: Set<MonitorTool> = []
 
     // MARK: - Private
 
     private let service: NDIService
+    private(set) var falseColorProcessor = FalseColorProcessor()
+    private(set) var histogramProcessor = HistogramProcessor()
+    var histogramData: [String: HistogramData] = [:]
     private var discoveryTask: Task<Void, Never>?
     private var receiveTasks: [String: Task<Void, Never>] = [:]
+    private var histogramTask: Task<Void, Never>?
 
     init(service: NDIService) {
         self.service = service
@@ -89,6 +94,42 @@ final class MonitorViewModel {
 
         if primarySourceID == source.id {
             primarySourceID = selectedSources.first
+        }
+    }
+
+    // MARK: - Tools
+
+    func toggleTool(_ tool: MonitorTool) {
+        if activeTools.contains(tool) {
+            activeTools.remove(tool)
+        } else {
+            activeTools.insert(tool)
+        }
+    }
+
+    var isFalseColorActive: Bool {
+        activeTools.contains(.falseColor)
+    }
+
+    var isHistogramActive: Bool {
+        activeTools.contains(.histogram)
+    }
+
+    /// Compute histogram for a given source's current frame on a background thread.
+    func updateHistogram(for sourceID: String) {
+        guard isHistogramActive, let frame = frames[sourceID] else {
+            histogramData.removeValue(forKey: sourceID)
+            return
+        }
+        let processor = histogramProcessor
+        histogramTask?.cancel()
+        histogramTask = Task.detached { [weak self] in
+            let result = processor.compute(frame)
+            guard let result else { return }
+            await MainActor.run { [weak self] in
+                guard let self, self.isHistogramActive else { return }
+                self.histogramData[sourceID] = result
+            }
         }
     }
 
