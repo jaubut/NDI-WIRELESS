@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09",
+  "generatedAt": "2026-09-10",
   "repo": "ndi-wireless",
   "intent": "TLS Viewer (NDI Wireless) — iOS/iPadOS NDI monitor for wireless on-set video: discovers NDI sources on the network, shows a single monitor or a multi-view grid, with per-frame monitor tools (histogram, false colour); a mock NDI service stands in on the simulator. Correctness bar: frames render at source rate without leaking buffers, tools are pure per-frame processors, discovery survives network changes.",
   "targets": [
@@ -16,7 +16,9 @@
           "exports": [
             "HistogramData",
             "HistogramProcessor",
-            "compute()"
+            "compute()",
+            "HistogramData.green",
+            "HistogramData.blue"
           ],
           "state": [],
           "emits": [],
@@ -36,7 +38,8 @@
           "lines": 83,
           "kind": "view",
           "exports": [
-            "HistogramView"
+            "HistogramView",
+            "HistogramView.data"
           ],
           "state": [],
           "emits": [],
@@ -52,10 +55,11 @@
         },
         {
           "path": "NDI WIRELESS/ContentView.swift",
-          "lines": 81,
+          "lines": 116,
           "kind": "view",
           "exports": [
-            "ContentView"
+            "ContentView",
+            "ContentView.viewModel"
           ],
           "state": [],
           "emits": [],
@@ -69,7 +73,8 @@
           ],
           "sheets": 1,
           "externals": [
-            "SwiftUI"
+            "SwiftUI",
+            "UIKit"
           ]
         },
         {
@@ -94,13 +99,54 @@
           ]
         },
         {
+          "path": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "lines": 155,
+          "kind": "lib",
+          "exports": [
+            "FrameStats",
+            "withTransportCounters()",
+            "FrameStatsAccumulator",
+            "now()",
+            "record()",
+            "snapshot()",
+            "FrameStats.msSinceLastFrame",
+            "FrameStats.received",
+            "FrameStats.dropped",
+            "FrameStats.late",
+            "FrameStats.isEstimated",
+            "FrameStats.connections",
+            "FrameStatsAccumulator.windowSeconds",
+            "FrameStatsAccumulator.lateTolerance",
+            "State.lastKey",
+            "State.lastArrival",
+            "State.arrivals",
+            "State.accepted",
+            "State.late",
+            "State.nominalInterval",
+            "State.isEstimated"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "Foundation",
+            "Synchronization"
+          ]
+        },
+        {
           "path": "NDI WIRELESS/MockNDIService.swift",
-          "lines": 123,
+          "lines": 159,
           "kind": "lib",
           "exports": [
             "MockNDIService",
             "discoverSources()",
             "startReceiving()",
+            "stats()",
             "stopReceiving()",
             "stopAll()"
           ],
@@ -120,10 +166,12 @@
         },
         {
           "path": "NDI WIRELESS/MonitorTool.swift",
-          "lines": 33,
+          "lines": 30,
           "kind": "lib",
           "exports": [
-            "MonitorTool"
+            "MonitorTool",
+            "MonitorTool.label",
+            "MonitorTool.systemImage"
           ],
           "state": [],
           "emits": [],
@@ -133,7 +181,6 @@
           "imports": [],
           "listeners": [
             ".falseColor",
-            ".zoom",
             ".histogram"
           ],
           "sheets": 0,
@@ -143,7 +190,7 @@
         },
         {
           "path": "NDI WIRELESS/MonitorViewModel.swift",
-          "lines": 115,
+          "lines": 289,
           "kind": "lib",
           "exports": [
             "LayoutMode",
@@ -153,8 +200,30 @@
             "toggleSource()",
             "startReceiving()",
             "stopReceiving()",
+            "setBandwidth()",
+            "connectionState()",
+            "toggleTool()",
+            "updateHistogram()",
             "selectPrimary()",
-            "stopAll()"
+            "stopAll()",
+            "MonitorViewModel.discoveredSources",
+            "MonitorViewModel.sourceIndex",
+            "MonitorViewModel.selectedSources",
+            "MonitorViewModel.frames",
+            "MonitorViewModel.bandwidth",
+            "MonitorViewModel.stats",
+            "MonitorViewModel.connectionState",
+            "MonitorViewModel.layoutMode",
+            "MonitorViewModel.primarySourceID",
+            "MonitorViewModel.isDiscovering",
+            "MonitorViewModel.isChromeVisible",
+            "MonitorViewModel.activeTools",
+            "MonitorViewModel.falseColorProcessor",
+            "MonitorViewModel.histogramProcessor",
+            "MonitorViewModel.histogramData",
+            "MonitorViewModel.starvedAfterMilliseconds",
+            "MonitorViewModel.isFalseColorActive",
+            "MonitorViewModel.isHistogramActive"
           ],
           "state": [],
           "emits": [],
@@ -162,19 +231,23 @@
           "endpoints": [],
           "apiCalls": [],
           "imports": [],
-          "listeners": [],
+          "listeners": [
+            ".reconnecting"
+          ],
           "sheets": 0,
           "externals": [
             "CoreGraphics",
+            "Foundation",
             "Observation"
           ]
         },
         {
           "path": "NDI WIRELESS/MultiViewGrid.swift",
-          "lines": 53,
+          "lines": 111,
           "kind": "view",
           "exports": [
-            "MultiViewGrid"
+            "MultiViewGrid",
+            "MultiViewGrid.viewModel"
           ],
           "state": [],
           "emits": [],
@@ -190,14 +263,20 @@
         },
         {
           "path": "NDI WIRELESS/NDIService.swift",
-          "lines": 24,
+          "lines": 64,
           "kind": "lib",
           "exports": [
+            "NDIBandwidthMode",
+            "SourceConnectionState",
             "NDIService",
             "discoverSources()",
             "startReceiving()",
             "stopReceiving()",
-            "stopAll()"
+            "stopAll()",
+            "stats()",
+            "NDIBandwidthMode.label",
+            "NDIBandwidthMode.isProxy",
+            "SourceConnectionState.isLive"
           ],
           "state": [],
           "emits": [],
@@ -205,7 +284,10 @@
           "endpoints": [],
           "apiCalls": [],
           "imports": [],
-          "listeners": [],
+          "listeners": [
+            ".highest",
+            ".lowest"
+          ],
           "sheets": 0,
           "externals": [
             "CoreGraphics",
@@ -217,7 +299,9 @@
           "lines": 15,
           "kind": "lib",
           "exports": [
-            "NDISource"
+            "NDISource",
+            "NDISource.name",
+            "NDISource.ipAddress"
           ],
           "state": [],
           "emits": [],
@@ -233,7 +317,7 @@
         },
         {
           "path": "NDI WIRELESS/NDI_WIRELESSApp.swift",
-          "lines": 18,
+          "lines": 22,
           "kind": "lib",
           "exports": [
             "NDI_WIRELESSApp"
@@ -252,14 +336,20 @@
         },
         {
           "path": "NDI WIRELESS/RealNDIService.swift",
-          "lines": 285,
+          "lines": 385,
           "kind": "lib",
           "exports": [
+            "close()",
+            "cancel()",
             "RealNDIService",
             "discoverSources()",
             "startReceiving()",
             "stopReceiving()",
-            "stopAll()"
+            "stopAll()",
+            "stats()",
+            "ReceiverHandle.stats",
+            "ReceiverHandle.framesync",
+            "ReceiverHandle.task"
           ],
           "state": [],
           "emits": [],
@@ -271,15 +361,17 @@
           "sheets": 0,
           "externals": [
             "CoreGraphics",
-            "Foundation"
+            "Foundation",
+            "Synchronization"
           ]
         },
         {
           "path": "NDI WIRELESS/SingleMonitorView.swift",
-          "lines": 33,
+          "lines": 156,
           "kind": "view",
           "exports": [
-            "SingleMonitorView"
+            "SingleMonitorView",
+            "SingleMonitorView.viewModel"
           ],
           "state": [],
           "emits": [],
@@ -295,10 +387,11 @@
         },
         {
           "path": "NDI WIRELESS/SourceDiscoveryView.swift",
-          "lines": 47,
+          "lines": 74,
           "kind": "view",
           "exports": [
-            "SourceDiscoveryView"
+            "SourceDiscoveryView",
+            "SourceDiscoveryView.viewModel"
           ],
           "state": [],
           "emits": [],
@@ -313,11 +406,39 @@
           ]
         },
         {
-          "path": "NDI WIRELESS/ToolboxView.swift",
-          "lines": 40,
+          "path": "NDI WIRELESS/StatsOverlayView.swift",
+          "lines": 141,
           "kind": "view",
           "exports": [
-            "ToolboxView"
+            "StatsOverlayView",
+            "SourceStatusChip",
+            "ProxyBadge",
+            "StatsOverlayView.stats",
+            "StatsOverlayView.bandwidth",
+            "StatsOverlayView.setBandwidth",
+            "SourceStatusChip.state"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [
+            ".reconnecting"
+          ],
+          "sheets": 0,
+          "externals": [
+            "SwiftUI"
+          ]
+        },
+        {
+          "path": "NDI WIRELESS/ToolboxView.swift",
+          "lines": 39,
+          "kind": "view",
+          "exports": [
+            "ToolboxView",
+            "ToolboxView.viewModel"
           ],
           "state": [],
           "emits": [],
@@ -333,10 +454,15 @@
         },
         {
           "path": "NDI WIRELESS/VideoFrameView.swift",
-          "lines": 33,
+          "lines": 59,
           "kind": "view",
           "exports": [
-            "VideoFrameView"
+            "VideoFrameView",
+            "VideoFrameView.frame",
+            "VideoFrameView.sourceName",
+            "VideoFrameView.falseColorProcessor",
+            "VideoFrameView.status",
+            "VideoFrameView.isProxy"
           ],
           "state": [],
           "emits": [],
@@ -355,6 +481,21 @@
         "HistogramData": {
           "module": "HistogramProcessor.swift",
           "callers": [
+            "HistogramView.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "HistogramData.green": {
+          "module": "HistogramProcessor.swift",
+          "callers": [
+            "HistogramView.swift"
+          ]
+        },
+        "HistogramData.blue": {
+          "module": "HistogramProcessor.swift",
+          "callers": [
             "HistogramView.swift"
           ]
         },
@@ -369,8 +510,22 @@
             "NDI WIRELESS/ToolboxView.swift"
           ]
         },
+        "MonitorViewModel.selectedSources": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift",
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
         "SourceDiscoveryView": {
           "module": "NDI WIRELESS/SourceDiscoveryView.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "MonitorViewModel.layoutMode": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
             "NDI WIRELESS/ContentView.swift"
           ]
@@ -383,6 +538,20 @@
         },
         "MultiViewGrid": {
           "module": "NDI WIRELESS/MultiViewGrid.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
+        "MonitorViewModel.isChromeVisible": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift",
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "ToolboxView": {
+          "module": "NDI WIRELESS/ToolboxView.swift",
           "callers": [
             "NDI WIRELESS/ContentView.swift"
           ]
@@ -414,6 +583,13 @@
             "NDI WIRELESS/RealNDIService.swift"
           ]
         },
+        "FrameStatsAccumulator": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
         "NDISource": {
           "module": "NDI WIRELESS/NDISource.swift",
           "callers": [
@@ -422,6 +598,118 @@
             "NDI WIRELESS/MultiViewGrid.swift",
             "NDI WIRELESS/NDIService.swift",
             "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
+        "cancel": {
+          "module": "NDI WIRELESS/RealNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "NDIBandwidthMode": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "record": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "FrameStats": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "snapshot": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "SourceConnectionState": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/StatsOverlayView.swift",
+            "NDI WIRELESS/VideoFrameView.swift"
+          ]
+        },
+        "FalseColorProcessor": {
+          "module": "NDI WIRELESS/FalseColorProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/VideoFrameView.swift"
+          ]
+        },
+        "HistogramProcessor": {
+          "module": "HistogramProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "FrameStats.msSinceLastFrame": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "FrameStats.connections": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "MonitorTool": {
+          "module": "NDI WIRELESS/MonitorTool.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/ToolboxView.swift"
+          ]
+        },
+        "compute": {
+          "module": "HistogramProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "MonitorViewModel.sourceIndex": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "MonitorViewModel.connectionState": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "MonitorViewModel.histogramData": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
             "NDI WIRELESS/SingleMonitorView.swift"
           ]
         },
@@ -432,10 +720,61 @@
             "NDI WIRELESS/SingleMonitorView.swift"
           ]
         },
-        "selectPrimary": {
+        "MonitorViewModel.frames": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
-            "NDI WIRELESS/MultiViewGrid.swift"
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "NDISource.name": {
+          "module": "NDI WIRELESS/NDISource.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
+        "MonitorViewModel.isFalseColorActive": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "SourceStatusChip": {
+          "module": "NDI WIRELESS/StatsOverlayView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "ProxyBadge": {
+          "module": "NDI WIRELESS/StatsOverlayView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "HistogramView": {
+          "module": "HistogramView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "VideoFrameView.frame": {
+          "module": "NDI WIRELESS/VideoFrameView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "updateHistogram": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
           ]
         },
         "ContentView": {
@@ -444,16 +783,102 @@
             "NDI WIRELESS/NDI_WIRELESSApp.swift"
           ]
         },
+        "RealNDIService": {
+          "module": "NDI WIRELESS/RealNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "withTransportCounters": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "MonitorViewModel.primarySourceID": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "MonitorViewModel.isHistogramActive": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "StatsOverlayView": {
+          "module": "NDI WIRELESS/StatsOverlayView.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "setBandwidth": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "StatsOverlayView.setBandwidth": {
+          "module": "NDI WIRELESS/StatsOverlayView.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "MonitorViewModel.discoveredSources": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
+        "NDISource.ipAddress": {
+          "module": "NDI WIRELESS/NDISource.swift",
+          "callers": [
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
         "toggleSource": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
             "NDI WIRELESS/SourceDiscoveryView.swift"
           ]
         },
-        "MonitorTool": {
+        "FrameStats.dropped": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "toggleTool": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ToolboxView.swift"
+          ]
+        },
+        "MonitorTool.systemImage": {
           "module": "NDI WIRELESS/MonitorTool.swift",
           "callers": [
             "NDI WIRELESS/ToolboxView.swift"
+          ]
+        },
+        "MonitorViewModel.activeTools": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ToolboxView.swift"
+          ]
+        },
+        "process": {
+          "module": "NDI WIRELESS/FalseColorProcessor.swift",
+          "callers": [
+            "NDI WIRELESS/VideoFrameView.swift"
+          ]
+        },
+        "SourceConnectionState.isLive": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/VideoFrameView.swift"
           ]
         }
       },
@@ -484,8 +909,10 @@
         "Foundation": {
           "version": null,
           "modules": [
+            "NDI WIRELESS/FrameStatsAccumulator.swift",
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/MonitorTool.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
             "NDI WIRELESS/NDIService.swift",
             "NDI WIRELESS/NDISource.swift",
             "NDI WIRELESS/RealNDIService.swift"
@@ -506,13 +933,22 @@
             "NDI WIRELESS/NDI_WIRELESSApp.swift",
             "NDI WIRELESS/SingleMonitorView.swift",
             "NDI WIRELESS/SourceDiscoveryView.swift",
+            "NDI WIRELESS/StatsOverlayView.swift",
             "NDI WIRELESS/ToolboxView.swift",
             "NDI WIRELESS/VideoFrameView.swift"
+          ]
+        },
+        "Synchronization": {
+          "version": null,
+          "modules": [
+            "NDI WIRELESS/FrameStatsAccumulator.swift",
+            "NDI WIRELESS/RealNDIService.swift"
           ]
         },
         "UIKit": {
           "version": null,
           "modules": [
+            "NDI WIRELESS/ContentView.swift",
             "NDI WIRELESS/MockNDIService.swift"
           ]
         }
