@@ -26,22 +26,46 @@ struct SingleMonitorView: View {
         )
     }
 
+    /// From the session index, never from discovery: a source that drops off the
+    /// network keeps its title instead of going blank mid-take.
     private var source: NDISource? {
-        viewModel.discoveredSources.first { $0.id == viewModel.primarySourceID }
+        viewModel.primarySourceID.flatMap { viewModel.sourceIndex[$0] }
+    }
+
+    private var sourceID: String? { viewModel.primarySourceID }
+
+    private var status: SourceConnectionState {
+        sourceID.flatMap { viewModel.connectionState[$0] } ?? .live
+    }
+
+    private var bandwidth: NDIBandwidthMode {
+        sourceID.flatMap { viewModel.bandwidth[$0] } ?? .highest
+    }
+
+    /// Drawn here, not inside `VideoFrameView`: the histogram used to scale and drift
+    /// with the pinch because it lived in the scaled subtree.
+    private var histogram: HistogramData? {
+        sourceID.flatMap { viewModel.histogramData[$0] }
     }
 
     var body: some View {
-        VideoFrameView(
-            frame: viewModel.primarySourceID.flatMap { viewModel.frames[$0] },
-            sourceName: source?.name ?? "No Source",
-            falseColorProcessor: viewModel.isFalseColorActive
-                ? viewModel.falseColorProcessor : nil,
-            histogramData: viewModel.primarySourceID.flatMap {
-                viewModel.histogramData[$0]
-            }
-        )
-        .scaleEffect(effectiveScale)
-        .offset(effectiveOffset)
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VideoFrameView(
+                frame: sourceID.flatMap { viewModel.frames[$0] },
+                sourceName: source?.name ?? "No Source",
+                falseColorProcessor: viewModel.isFalseColorActive
+                    ? viewModel.falseColorProcessor : nil,
+                status: status,
+                isProxy: bandwidth.isProxy
+            )
+            .scaleEffect(effectiveScale)
+            .offset(effectiveOffset)
+            .ignoresSafeArea()
+
+            overlayLayer
+        }
         .simultaneousGesture(
             MagnifyGesture()
                 .updating($gestureScale) { value, state, _ in
@@ -77,7 +101,6 @@ struct SingleMonitorView: View {
                 steadyOffset = .zero
             }
         }
-        .ignoresSafeArea()
         .navigationTitle(source?.name ?? "Monitor")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -96,5 +119,37 @@ struct SingleMonitorView: View {
                 }
             }
         }
+    }
+
+    /// Everything that must stay put and stay legible while the picture zooms.
+    @ViewBuilder
+    private var overlayLayer: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                SourceStatusChip(state: status)
+                if bandwidth.isProxy {
+                    ProxyBadge()
+                }
+                Spacer()
+            }
+
+            Spacer()
+
+            HStack(alignment: .bottom) {
+                if viewModel.isChromeVisible, let id = sourceID {
+                    StatsOverlayView(
+                        stats: viewModel.stats[id],
+                        bandwidth: bandwidth,
+                        setBandwidth: { viewModel.setBandwidth($0, for: id) }
+                    )
+                }
+                Spacer()
+                if let histogram {
+                    HistogramView(data: histogram)
+                        .frame(width: 200, height: 100)
+                }
+            }
+        }
+        .padding(12)
     }
 }
