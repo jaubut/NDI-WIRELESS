@@ -12,9 +12,57 @@ import Foundation
 import UIKit
 #endif
 
+import Synchronization
+
+/// One mock receiver's shared state.
+///
+/// The capture loop is detached and the view model pulls stats from the main actor, so
+/// both halves are behind a lock and the isolation is declared rather than inferred.
+/// The accumulator is swappable: `reconnect` starts a fresh measurement without stopping
+/// the loop, which is what a re-point does on the real transport.
+private nonisolated final class MockReceiver: Sendable {
+    private struct State {
+        var accumulator = FrameStatsAccumulator()
+        var isGlitching = false
+    }
+
+    private let state = Mutex(State())
+
+    var accumulator: FrameStatsAccumulator {
+        state.withLock { (s: inout State) -> FrameStatsAccumulator in s.accumulator }
+    }
+
+    func setGlitching(_ glitching: Bool) {
+        state.withLock { (s: inout State) -> Void in s.isGlitching = glitching }
+    }
+
+    /// A re-point: measurement starts over, and whatever gap was being reported ends.
+    func reconnect() {
+        state.withLock { (s: inout State) -> Void in
+            s.accumulator = FrameStatsAccumulator()
+            s.isGlitching = false
+        }
+    }
+
+    /// While the scripted glitch is running there is nobody on the other end, which is
+    /// what the view model reads to raise the chip.
+    func snapshot() -> FrameStats {
+        let (accumulator, glitching) = state.withLock { (s: inout State) -> (FrameStatsAccumulator, Bool) in
+            (s.accumulator, s.isGlitching)
+        }
+        let snapshot = accumulator.snapshot()
+        guard glitching else { return snapshot }
+        return snapshot.withTransportCounters(
+            received: snapshot.received,
+            dropped: snapshot.dropped,
+            connections: 0
+        )
+    }
+}
+
 final class MockNDIService: NDIService {
     private var activeReceivers: Set<String> = []
-    private var accumulators: [String: FrameStatsAccumulator] = [:]
+    private var receiverStates: [String: MockReceiver] = [:]
 
     // Read from the detached capture loop, so isolation is declared rather than inferred
     // (the module defaults to MainActor).
@@ -25,6 +73,14 @@ final class MockNDIService: NDIService {
     private nonisolated static let frameRateD: Int32 = 1
     /// One frame in 100-nanosecond units, matching the SDK's timestamp scale.
     private nonisolated static let timestampStep: Int64 = 333_333
+    /// One tick of the capture loop, in milliseconds.
+    private nonisolated static let tickMilliseconds: Int64 = 33
+    /// The scripted outage: the last second of every twenty. Nothing new arrives and the
+    /// receiver reports no connection, so the simulator exercises the chip and the
+    /// recovery ladder without a network to unplug. It lands at the *end* of the cycle
+    /// so a freshly started receiver delivers immediately.
+    private nonisolated static let glitchPeriodTicks: Int64 = 20_000 / tickMilliseconds
+    private nonisolated static let glitchTicks: Int64 = 1_000 / tickMilliseconds
 
     func discoverSources() -> AsyncStream<[NDISource]> {
         AsyncStream { continuation in
@@ -54,8 +110,8 @@ final class MockNDIService: NDIService {
         let sourceID = source.id
         activeReceivers.insert(sourceID)
 
-        let accumulator = FrameStatsAccumulator()
-        accumulators[sourceID] = accumulator
+        let receiver = MockReceiver()
+        receiverStates[sourceID] = receiver
 
         // `.lowest` stands in for the SDK's proxy stream: same picture, half the size.
         let width = bandwidth == .lowest ? 480 : 960
@@ -68,22 +124,32 @@ final class MockNDIService: NDIService {
                 var tick: Int64 = 0
                 while !Task.isCancelled {
                     tick += 1
-                    let isNewFrame = accumulator.record(
-                        timestamp: tick * Self.timestampStep,
-                        timecode: tick * Self.timestampStep,
-                        frameRateN: Self.frameRateN,
-                        frameRateD: Self.frameRateD
-                    )
 
-                    if isNewFrame, let image = Self.generateTestPattern(
-                        width: width, height: height, hue: hue
-                    ) {
-                        continuation.yield(image)
+                    // Scripted outage: stop delivering and report no connection. The
+                    // clock keeps running, so the gap the accumulator measures after it
+                    // is the real one.
+                    let glitching = tick % Self.glitchPeriodTicks
+                        >= Self.glitchPeriodTicks - Self.glitchTicks
+                    receiver.setGlitching(glitching)
+
+                    if !glitching {
+                        let isNewFrame = receiver.accumulator.record(
+                            timestamp: tick * Self.timestampStep,
+                            timecode: tick * Self.timestampStep,
+                            frameRateN: Self.frameRateN,
+                            frameRateD: Self.frameRateD
+                        )
+
+                        if isNewFrame, let image = Self.generateTestPattern(
+                            width: width, height: height, hue: hue
+                        ) {
+                            continuation.yield(image)
+                        }
                     }
 
                     hue += 0.005
                     if hue > 1 { hue = 0 }
-                    try? await Task.sleep(for: .milliseconds(33))
+                    try? await Task.sleep(for: .milliseconds(Self.tickMilliseconds))
                 }
                 continuation.finish()
             }
@@ -95,17 +161,23 @@ final class MockNDIService: NDIService {
     }
 
     func stats(for source: NDISource) -> FrameStats? {
-        accumulators[source.id]?.snapshot()
+        receiverStates[source.id]?.snapshot()
+    }
+
+    /// The mock's re-point: measurement starts over on a receiver that keeps running,
+    /// exactly like `NDIlib_recv_connect` on a live instance.
+    func reconnect(_ source: NDISource) {
+        receiverStates[source.id]?.reconnect()
     }
 
     func stopReceiving(from source: NDISource) {
         activeReceivers.remove(source.id)
-        accumulators.removeValue(forKey: source.id)
+        receiverStates.removeValue(forKey: source.id)
     }
 
     func stopAll() {
         activeReceivers.removeAll()
-        accumulators.removeAll()
+        receiverStates.removeAll()
     }
 
     // MARK: - Test Pattern Generation (CoreGraphics only)
