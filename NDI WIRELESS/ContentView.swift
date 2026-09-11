@@ -13,6 +13,7 @@ import UIKit
 struct ContentView: View {
     @State var viewModel: MonitorViewModel
     @State private var showSourcePicker = false
+    @State private var showAbout = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -64,6 +65,16 @@ struct ContentView: View {
                 }
                 #endif
 
+                #if os(iOS)
+                ToolbarItem(placement: .topBarTrailing) {
+                    aboutButton
+                }
+                #else
+                ToolbarItem {
+                    aboutButton
+                }
+                #endif
+
                 if !viewModel.selectedSources.isEmpty {
                     ToolbarItem(placement: .automatic) {
                         Picker("Layout", selection: $viewModel.layoutMode) {
@@ -76,6 +87,9 @@ struct ContentView: View {
                         .frame(width: 100)
                     }
                 }
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutView()
             }
             .sheet(isPresented: $showSourcePicker) {
                 NavigationStack {
@@ -101,6 +115,17 @@ struct ContentView: View {
         }
         .onDisappear { setKeepAwake(false) }
         .preferredColorScheme(.dark)
+    }
+
+    /// Version, licences and the NDI trademark notice. An icon on its own says nothing,
+    /// so it carries a label for VoiceOver and for the accessibility inspector.
+    private var aboutButton: some View {
+        Button {
+            showAbout = true
+        } label: {
+            Image(systemName: "info.circle")
+        }
+        .accessibilityLabel("About TLS Viewer")
     }
 
     private func setKeepAwake(_ on: Bool) {
