@@ -104,6 +104,7 @@ struct ContentView: View {
         }
         .task {
             viewModel.startDiscovery()
+            requestLandscapeForScreenshots()
         }
         // Keep the screen awake while a source is being monitored; an iPad sleeping
         // in front of a client mid-take is a failure mode, not a battery saver.
@@ -126,6 +127,20 @@ struct ContentView: View {
             Image(systemName: "info.circle")
         }
         .accessibilityLabel("About TLS Viewer")
+    }
+
+    /// App Store screenshots are landscape: this is a monitor, and a portrait frame of a
+    /// 16:9 picture is mostly black. Asked for once the scene is connected, and only when
+    /// the launch argument is there — a real user's rotation is their own business.
+    private func requestLandscapeForScreenshots() {
+        #if canImport(UIKit)
+        guard MonitorViewModel.isLaunchedForScreenshots else { return }
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first else { return }
+
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        #endif
     }
 
     private func setKeepAwake(_ on: Bool) {
