@@ -3,6 +3,7 @@
 ## Change Plans
 
 ### Change Plan — onset-hardening (2026-09-11, rev 3 — rev 2 after analyst reconciliation, rev 3 amends the PR-0 Files rows after drift check)
+**✅ shipped** — PR-0 #2, PR-A #3, PR-B #4 (all 2026-09-10, each drift-checked CLEAN). Manual iPad pass (Verify 4-9) is Jeremie's, on the merged build.
 **Request:** (1) Receiver bandwidth mode toggle (highest/lowest) + live stats overlay (fps, ms since last frame, dropped/late) produced by the service layer; (2) NWPathMonitor-driven resilience so discovery re-runs and receivers rebuild on a Wi-Fi path change without the user re-picking sources.
 **Ships as three PRs, sequential, one builder:** **PR-0** = simulator build unblock ✅ shipped #2 (must land first — nothing below is testable until it does), **PR-A** = bandwidth + stats, **PR-B** = resilience. Do not parallelise: five files are touched by both A and B. If only one feature PR lands before the next gig, hoist the source-directory fix into PR-A — it is the highest on-set value item here.
 
