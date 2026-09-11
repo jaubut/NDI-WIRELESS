@@ -24,9 +24,25 @@ private nonisolated final class MockReceiver: Sendable {
     private struct State {
         var accumulator = FrameStatsAccumulator()
         var isGlitching = false
+        /// The capture loop, so a stop path can end it. `RealNDIService` cancels its loop
+        /// on `stopReceiving`; this one used to drop its bookkeeping and leave the loop
+        /// running, which made the mock's `stopAll` a promise it did not keep.
+        var task: Task<Void, Never>?
     }
 
     private let state = Mutex(State())
+
+    func attach(_ task: Task<Void, Never>) {
+        state.withLock { (s: inout State) -> Void in s.task = task }
+    }
+
+    func cancel() {
+        let task = state.withLock { (s: inout State) -> Task<Void, Never>? in
+            defer { s.task = nil }
+            return s.task
+        }
+        task?.cancel()
+    }
 
     var accumulator: FrameStatsAccumulator {
         state.withLock { (s: inout State) -> FrameStatsAccumulator in s.accumulator }
@@ -64,6 +80,29 @@ final class MockNDIService: NDIService {
     private var activeReceivers: Set<String> = []
     private var receiverStates: [String: MockReceiver] = [:]
 
+    /// When set, this is the whole of what the mock discovers and nothing else is ever
+    /// yielded. Used for the built-in demo source in the shipping build, where a second
+    /// invented camera would be a lie about what the app found on the network.
+    private let fixedSource: NDISource?
+
+    /// The simulator's stand-in transport: several sources, and the scripted outage that
+    /// exercises the reconnect chip.
+    init() {
+        self.fixedSource = nil
+    }
+
+    /// One source, and no scripted outage.
+    ///
+    /// This is the demo feed a reviewer sees on a desk with no NDI sender on the Wi-Fi. A
+    /// `RECONNECTING` chip flashing every twenty seconds would read as a broken app rather
+    /// than as the resilience behaviour it demonstrates, so the glitch is off here.
+    init(singleSource source: NDISource) {
+        self.fixedSource = source
+    }
+
+    /// The scripted outage only belongs to the multi-source simulator mock.
+    private var isGlitchScripted: Bool { fixedSource == nil }
+
     // Read from the detached capture loop, so isolation is declared rather than inferred
     // (the module defaults to MainActor).
 
@@ -83,10 +122,18 @@ final class MockNDIService: NDIService {
     private nonisolated static let glitchTicks: Int64 = 1_000 / tickMilliseconds
 
     func discoverSources() -> AsyncStream<[NDISource]> {
-        AsyncStream { continuation in
+        if let fixedSource {
+            // Yielded once and never revised. The stream stays open rather than finishing,
+            // so a consumer that merges it with another finder keeps its subscription.
+            return AsyncStream { continuation in
+                continuation.yield([fixedSource])
+            }
+        }
+
+        return AsyncStream { continuation in
             let initial = [
-                NDISource(id: "obs-1", name: "OBS (Studio)", ipAddress: "192.168.1.10"),
-                NDISource(id: "camera-1", name: "PTZ Camera 1", ipAddress: "192.168.1.20"),
+                NDISource(id: "obs-1", name: "Camera A", ipAddress: "192.168.1.10"),
+                NDISource(id: "camera-1", name: "Camera B", ipAddress: "192.168.1.20"),
             ]
             continuation.yield(initial)
 
@@ -94,8 +141,8 @@ final class MockNDIService: NDIService {
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
                 let updated = initial + [
-                    NDISource(id: "vmix-1", name: "vMix Output", ipAddress: "192.168.1.30"),
-                    NDISource(id: "ndi-hx-1", name: "NDI HX Camera", ipAddress: "192.168.1.40"),
+                    NDISource(id: "vmix-1", name: "Camera C", ipAddress: "192.168.1.30"),
+                    NDISource(id: "ndi-hx-1", name: "Camera D", ipAddress: "192.168.1.40"),
                 ]
                 continuation.yield(updated)
             }
@@ -117,6 +164,7 @@ final class MockNDIService: NDIService {
         let width = bandwidth == .lowest ? 480 : 960
         let height = bandwidth == .lowest ? 270 : 540
         let seed = CGFloat(abs(sourceID.hashValue % 100)) / 100.0
+        let isGlitchScripted = self.isGlitchScripted
 
         return AsyncStream { continuation in
             let task = Task.detached {
@@ -128,8 +176,9 @@ final class MockNDIService: NDIService {
                     // Scripted outage: stop delivering and report no connection. The
                     // clock keeps running, so the gap the accumulator measures after it
                     // is the real one.
-                    let glitching = tick % Self.glitchPeriodTicks
-                        >= Self.glitchPeriodTicks - Self.glitchTicks
+                    let glitching = isGlitchScripted
+                        && tick % Self.glitchPeriodTicks
+                            >= Self.glitchPeriodTicks - Self.glitchTicks
                     receiver.setGlitching(glitching)
 
                     if !glitching {
@@ -154,6 +203,8 @@ final class MockNDIService: NDIService {
                 continuation.finish()
             }
 
+            receiver.attach(task)
+
             continuation.onTermination = { _ in
                 task.cancel()
             }
@@ -172,11 +223,14 @@ final class MockNDIService: NDIService {
 
     func stopReceiving(from source: NDISource) {
         activeReceivers.remove(source.id)
-        receiverStates.removeValue(forKey: source.id)
+        receiverStates.removeValue(forKey: source.id)?.cancel()
     }
 
     func stopAll() {
         activeReceivers.removeAll()
+        for receiver in receiverStates.values {
+            receiver.cancel()
+        }
         receiverStates.removeAll()
     }
 

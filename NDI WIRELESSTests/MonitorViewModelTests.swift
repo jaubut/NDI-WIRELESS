@@ -109,4 +109,73 @@ struct MonitorViewModelTests {
 
         viewModel.stopAll()
     }
+
+    // MARK: - Screenshot-mode selection policy
+    //
+    // The policy is exercised through the pure function rather than through a launch
+    // argument: the unit target builds without `NDI_ENABLED`, so the shipping branch is
+    // unreachable from an instance and would otherwise never be tested at all.
+
+    private var demoSource: NDISource { CompositeNDIService.demoSource }
+
+    /// A real camera can be first in the list on the shipping build — the composite
+    /// appends the demo source last. Auto-selecting it would latch a screenshot run onto
+    /// a live feed on set, so on that build only a `demo://` id may be taken.
+    @Test func theShippingBuildNeverAutoSelectsARealSource() {
+        let discovered = [source("live-cam"), demoSource]
+
+        let shipping = MonitorViewModel.screenshotSelection(
+            from: discovered, limit: 1, allowsNonDemoFallback: false
+        )
+        #expect(shipping.map(\.id) == [demoSource.id])
+
+        // With no demo source at all it takes nothing rather than taking a camera.
+        #expect(MonitorViewModel.screenshotSelection(
+            from: [source("live-cam")], limit: 1, allowsNonDemoFallback: false
+        ).isEmpty)
+    }
+
+    /// The simulator builds Mock-only and has no `demo://` source in the grid variant, so
+    /// there the fallback is what puts a wall on screen.
+    @Test func theMockOnlyBuildFallsBackToWhateverDiscoveryFound() {
+        let discovered = [source("a"), source("b"), source("c"), source("d"), source("e")]
+
+        let one = MonitorViewModel.screenshotSelection(
+            from: discovered, limit: 1, allowsNonDemoFallback: true
+        )
+        #expect(one.map(\.id) == ["a"])
+
+        // A grid takes a wall, and no more than the wall holds.
+        let wall = MonitorViewModel.screenshotSelection(
+            from: discovered, limit: 4, allowsNonDemoFallback: true
+        )
+        #expect(wall.map(\.id) == ["a", "b", "c", "d"])
+
+        // The demo source still wins when there is one.
+        let withDemo = MonitorViewModel.screenshotSelection(
+            from: [source("a"), demoSource], limit: 4, allowsNonDemoFallback: true
+        )
+        #expect(withDemo.map(\.id) == [demoSource.id])
+    }
+
+    /// Deselecting the last source must not hand it straight back on the next discovery
+    /// yield. Driven through the public surface rather than the launch argument, which
+    /// cannot be set for a hosted test run.
+    @Test func aDeselectSettlesTheSelectionForGood() async {
+        let viewModel = makeViewModel()
+        let a = source("A")
+
+        viewModel.startReceiving(a)
+        #expect(viewModel.selectedSources == ["A"])
+
+        viewModel.stopReceiving(a)
+        #expect(viewModel.selectedSources.isEmpty)
+
+        // Discovery keeps running against the mock for a while; nothing may come back.
+        viewModel.startDiscovery()
+        try? await Task.sleep(for: .seconds(3))
+        #expect(viewModel.selectedSources.isEmpty)
+
+        viewModel.stopAll()
+    }
 }

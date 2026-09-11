@@ -13,6 +13,7 @@ import UIKit
 struct ContentView: View {
     @State var viewModel: MonitorViewModel
     @State private var showSourcePicker = false
+    @State private var showAbout = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -64,6 +65,16 @@ struct ContentView: View {
                 }
                 #endif
 
+                #if os(iOS)
+                ToolbarItem(placement: .topBarTrailing) {
+                    aboutButton
+                }
+                #else
+                ToolbarItem {
+                    aboutButton
+                }
+                #endif
+
                 if !viewModel.selectedSources.isEmpty {
                     ToolbarItem(placement: .automatic) {
                         Picker("Layout", selection: $viewModel.layoutMode) {
@@ -76,6 +87,9 @@ struct ContentView: View {
                         .frame(width: 100)
                     }
                 }
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutView()
             }
             .sheet(isPresented: $showSourcePicker) {
                 NavigationStack {
@@ -90,6 +104,7 @@ struct ContentView: View {
         }
         .task {
             viewModel.startDiscovery()
+            requestLandscapeForScreenshots()
         }
         // Keep the screen awake while a source is being monitored; an iPad sleeping
         // in front of a client mid-take is a failure mode, not a battery saver.
@@ -101,6 +116,39 @@ struct ContentView: View {
         }
         .onDisappear { setKeepAwake(false) }
         .preferredColorScheme(.dark)
+    }
+
+    /// Version, licences and the NDI trademark notice. An icon on its own says nothing,
+    /// so it carries a label for VoiceOver and for the accessibility inspector.
+    private var aboutButton: some View {
+        Button {
+            showAbout = true
+        } label: {
+            Image(systemName: "info.circle")
+        }
+        .accessibilityLabel("About TLS Viewer")
+    }
+
+    /// App Store screenshots are landscape: this is a monitor, and a portrait frame of a
+    /// 16:9 picture is mostly black. Asked for once the scene is connected, and only when
+    /// the launch argument is there — a real user's rotation is their own business.
+    ///
+    /// Honoured on iPhone. **Not** on iPad, which refuses with `UISceneErrorDomain` 101,
+    /// "the current windowing mode does not allow for programmatic changes to interface
+    /// orientation": the app declares multiple-scene support, so iPadOS treats it as
+    /// fully resizable and keeps orientation under the user's control. iPad captures have
+    /// to rotate the simulated device instead, which is what XCUITest's
+    /// `XCUIDevice.orientation` does. Left in place because it is the right call on the
+    /// phone, where the same screenshots are needed.
+    private func requestLandscapeForScreenshots() {
+        #if canImport(UIKit)
+        guard MonitorViewModel.isLaunchedForScreenshots else { return }
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first else { return }
+
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        #endif
     }
 
     private func setKeepAwake(_ on: Bool) {

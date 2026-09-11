@@ -92,6 +92,7 @@ final class MonitorViewModel {
                 for source in sources {
                     self.sourceIndex[source.id] = source
                 }
+                self.applyScreenshotModeIfNeeded()
             }
         }
     }
@@ -112,6 +113,90 @@ final class MonitorViewModel {
         guard isDiscovering else { return }
         stopDiscovery()
         startDiscovery()
+    }
+
+    // MARK: - Screenshot mode
+
+    /// Launch arguments used only when capturing App Store screenshots. Without them
+    /// nothing in this section does anything at all.
+    static let screenshotModeArgument = "-screenshotMode"
+    static let screenshotGridArgument = "-screenshotGrid"
+
+    /// True when this launch was asked for App Store screenshots. Static so the scene can
+    /// ask before a view model exists.
+    static var isLaunchedForScreenshots: Bool {
+        ProcessInfo.processInfo.arguments.contains(screenshotModeArgument)
+    }
+
+    private let isScreenshotMode = MonitorViewModel.isLaunchedForScreenshots
+    private let wantsScreenshotGrid = ProcessInfo.processInfo.arguments
+        .contains(MonitorViewModel.screenshotGridArgument)
+
+    /// Set once the launch-time selection is settled — it has what the shot needs, or the
+    /// selection has been touched by hand. Either way discovery must stop reaching for it,
+    /// or deselecting the last source would let the next yield put it straight back.
+    private var isScreenshotSelectionSettled = false
+
+    /// A grid shot wants a wall; a single shot wants one feed.
+    private var screenshotSourceLimit: Int { wantsScreenshotGrid ? 4 : 1 }
+
+    /// May a screenshot run fall back to a source that is not the built-in demo?
+    ///
+    /// Only on a Mock-only build. On the shipping build the sources are real cameras on a
+    /// real set, and latching onto one of them because a launch argument was left behind
+    /// is not a screenshot, it is a surprise.
+    #if NDI_ENABLED
+    static let screenshotAllowsNonDemoFallback = false
+    #else
+    static let screenshotAllowsNonDemoFallback = true
+    #endif
+
+    /// Which sources a screenshot run may take, in order: the built-in demo if there is
+    /// one, and otherwise — on Mock-only builds only — whatever discovery reported.
+    ///
+    /// Pure and static so both branches can be driven from a test: the unit target builds
+    /// without `NDI_ENABLED`, so the shipping policy is unreachable through the instance.
+    static func screenshotSelection(
+        from discovered: [NDISource],
+        limit: Int,
+        allowsNonDemoFallback: Bool
+    ) -> [NDISource] {
+        let demo = discovered.filter { CompositeNDIService.isDemo($0.id) }
+        if !demo.isEmpty { return Array(demo.prefix(limit)) }
+        guard allowsNonDemoFallback else { return [] }
+        return Array(discovered.prefix(limit))
+    }
+
+    /// Put the demo feed on screen as soon as discovery offers it, with the chrome up.
+    ///
+    /// The grid variant tops up across yields — the mock finder reports two sources and
+    /// then four — and settles once it has its wall. Without the launch arguments none of
+    /// this runs.
+    private func applyScreenshotModeIfNeeded() {
+        guard isScreenshotMode, !isScreenshotSelectionSettled else { return }
+
+        let candidates = Self.screenshotSelection(
+            from: discoveredSources,
+            limit: screenshotSourceLimit,
+            allowsNonDemoFallback: Self.screenshotAllowsNonDemoFallback
+        )
+        guard !candidates.isEmpty else { return }
+
+        isChromeVisible = true
+        for source in candidates where !selectedSources.contains(source.id) {
+            startReceiving(source)
+        }
+        layoutMode = wantsScreenshotGrid ? .multi : .single
+
+        if selectedSources.count >= screenshotSourceLimit {
+            isScreenshotSelectionSettled = true
+        }
+    }
+
+    /// The selection has been touched by hand, so the launch-time helper is done.
+    private func settleScreenshotSelection() {
+        guard isScreenshotMode else { return }
+        isScreenshotSelectionSettled = true
     }
 
     // MARK: - Receiving
@@ -142,6 +227,7 @@ final class MonitorViewModel {
     }
 
     func stopReceiving(_ source: NDISource) {
+        settleScreenshotSelection()
         selectedSources.removeAll { $0 == source.id }
         receiveTasks[source.id]?.cancel()
         receiveTasks.removeValue(forKey: source.id)
@@ -418,6 +504,7 @@ final class MonitorViewModel {
     }
 
     func stopAll() {
+        settleScreenshotSelection()
         // Cancel first, then stop — the same order as `stopReceiving(_:)`, so no stop
         // ever reaches the transport while a receive task is still writing frames.
         receiveTasks.values.forEach { $0.cancel() }

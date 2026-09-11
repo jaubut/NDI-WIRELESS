@@ -11,8 +11,21 @@ struct SourceDiscoveryView: View {
     var viewModel: MonitorViewModel
 
     var body: some View {
-        List(viewModel.discoveredSources) { source in
-            row(for: source)
+        List {
+            Section {
+                ForEach(viewModel.discoveredSources) { source in
+                    row(for: source)
+                }
+            } footer: {
+                // An empty network is the normal state on a desk, not a fault. Say what
+                // the app looks for, and point at the source that is always there.
+                Text(
+                    """
+                    No sources? TLS Viewer discovers NDI® senders on the same Wi-Fi. \
+                    Use the demo source to explore the tools.
+                    """
+                )
+            }
         }
         .navigationTitle("NDI Sources")
         .overlay {
@@ -32,8 +45,19 @@ struct SourceDiscoveryView: View {
 
         HStack {
             VStack(alignment: .leading) {
-                Text(source.name)
-                    .font(.headline)
+                HStack(spacing: 6) {
+                    Text(source.name)
+                        .font(.headline)
+                    // Says outright that this row is not a camera on the network.
+                    if CompositeNDIService.isDemo(source.id) {
+                        Text("DEMO")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.quaternary, in: Capsule())
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Text(source.ipAddress)
                     .font(.caption)
                     .foregroundStyle(.secondary)
