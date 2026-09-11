@@ -92,6 +92,7 @@ final class MonitorViewModel {
                 for source in sources {
                     self.sourceIndex[source.id] = source
                 }
+                self.applyScreenshotModeIfNeeded()
             }
         }
     }
@@ -112,6 +113,37 @@ final class MonitorViewModel {
         guard isDiscovering else { return }
         stopDiscovery()
         startDiscovery()
+    }
+
+    // MARK: - Screenshot mode
+
+    /// Launch arguments used only when capturing App Store screenshots. Without them
+    /// nothing in this section does anything at all.
+    static let screenshotModeArgument = "-screenshotMode"
+    static let screenshotGridArgument = "-screenshotGrid"
+
+    private let isScreenshotMode = ProcessInfo.processInfo.arguments
+        .contains(MonitorViewModel.screenshotModeArgument)
+    private let wantsScreenshotGrid = ProcessInfo.processInfo.arguments
+        .contains(MonitorViewModel.screenshotGridArgument)
+
+    /// Put the demo feed on screen as soon as discovery offers it, with the chrome up.
+    ///
+    /// Runs once: the empty-selection guard closes it the moment a source is taken, so a
+    /// later discovery yield cannot re-select or reorder anything.
+    ///
+    /// The fallback to the first discovered source is what makes this usable on the
+    /// simulator, which builds Mock-only and therefore has no `demo://` source at all. On
+    /// the shipping build the composite yields the demo source in its very first list, so
+    /// the fallback is never reached.
+    private func applyScreenshotModeIfNeeded() {
+        guard isScreenshotMode, selectedSources.isEmpty else { return }
+        let demo = discoveredSources.first { CompositeNDIService.isDemo($0.id) }
+        guard let source = demo ?? discoveredSources.first else { return }
+
+        isChromeVisible = true
+        startReceiving(source)
+        layoutMode = wantsScreenshotGrid ? .multi : .single
     }
 
     // MARK: - Receiving
