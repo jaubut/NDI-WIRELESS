@@ -15,6 +15,7 @@
 
 import CoreGraphics
 import Foundation
+import Synchronization
 
 /// The real transport plus one demo source, presented as a single `NDIService`.
 ///
@@ -39,6 +40,14 @@ final class CompositeNDIService: NDIService {
     private let real: NDIService
     private let demo: NDIService
 
+    /// Every discovery stream handed out and still running.
+    ///
+    /// Held so `stopAll()` can end them. Without this the merge tasks and the demo
+    /// finder keep running after a stop and the stream never finishes; today the view
+    /// model's own task cancellation hides that, which makes it a trap for the next
+    /// caller rather than a non-issue.
+    private var discoverySessions: [DiscoverySession] = []
+
     /// Both sides are taken as the protocol, not as concrete types: `RealNDIService` only
     /// exists behind `NDI_ENABLED`, so this file has to compile on the simulator too.
     init(real: NDIService, demo: NDIService) {
@@ -59,6 +68,7 @@ final class CompositeNDIService: NDIService {
 
         return AsyncStream { continuation in
             let merged = MergedSources()
+            let session = DiscoverySession(continuation: continuation)
 
             let demoTask = Task { @MainActor in
                 for await sources in demo.discoverSources() {
@@ -74,9 +84,16 @@ final class CompositeNDIService: NDIService {
                 }
             }
 
-            continuation.onTermination = { _ in
-                demoTask.cancel()
-                realTask.cancel()
+            session.attach([demoTask, realTask])
+            discoverySessions.append(session)
+
+            // The consumer dropping the stream stops the merge too, and drops the session
+            // so a long-lived service does not accumulate dead ones.
+            continuation.onTermination = { [weak self] _ in
+                session.stop()
+                Task { @MainActor [weak self] in
+                    self?.forget(session)
+                }
             }
         }
     }
@@ -91,9 +108,18 @@ final class CompositeNDIService: NDIService {
         service(for: source.id).stopReceiving(from: source)
     }
 
-    /// Both sides: a selection can span the demo and the network, and neither half knows
-    /// about the other.
+    /// Stop means stop: the merge tasks are cancelled and every discovery stream this
+    /// service handed out is finished, then both children are told to stop.
+    ///
+    /// Forwarding alone was not enough. The merge tasks are ours, not the children's, and
+    /// nothing else would have ended them.
     func stopAll() {
+        let sessions = discoverySessions
+        discoverySessions.removeAll()
+        for session in sessions {
+            session.stop()
+        }
+
         real.stopAll()
         demo.stopAll()
     }
@@ -110,6 +136,55 @@ final class CompositeNDIService: NDIService {
 
     private func service(for sourceID: String) -> NDIService {
         Self.isDemo(sourceID) ? demo : real
+    }
+
+    private func forget(_ session: DiscoverySession) {
+        discoverySessions.removeAll { $0 === session }
+    }
+}
+
+/// One handed-out discovery stream and the two tasks feeding it.
+///
+/// `stop()` is idempotent and safe from any isolation: finishing the continuation calls
+/// the termination handler, which calls `stop()` again, so the flag has to be the thing
+/// that decides rather than the caller.
+///
+/// `nonisolated` on the declaration, not left to inference: the module defaults to
+/// MainActor and the termination handler is not on it.
+private nonisolated final class DiscoverySession: @unchecked Sendable {
+    private struct State {
+        var tasks: [Task<Void, Never>] = []
+        var isStopped = false
+    }
+
+    private let continuation: AsyncStream<[NDISource]>.Continuation
+    private let state = Mutex(State())
+
+    init(continuation: AsyncStream<[NDISource]>.Continuation) {
+        self.continuation = continuation
+    }
+
+    func attach(_ tasks: [Task<Void, Never>]) {
+        state.withLock { (s: inout State) -> Void in
+            guard !s.isStopped else { return }
+            s.tasks = tasks
+        }
+        // Attached after the stream was already stopped: nothing should still be running.
+        if state.withLock({ (s: inout State) -> Bool in s.isStopped }) {
+            tasks.forEach { $0.cancel() }
+        }
+    }
+
+    func stop() {
+        let tasks = state.withLock { (s: inout State) -> [Task<Void, Never>]? in
+            guard !s.isStopped else { return nil }
+            s.isStopped = true
+            defer { s.tasks = [] }
+            return s.tasks
+        }
+        guard let tasks else { return }
+        tasks.forEach { $0.cancel() }
+        continuation.finish()
     }
 }
 

@@ -81,6 +81,15 @@ private final class StubNDIService: NDIService {
 private final class LatestSources {
     var ids: [String] = []
     var count: Int { ids.count }
+    /// Set when the stream finishes rather than merely going quiet — the difference
+    /// between a discovery that stopped and one that is still running with nothing to say.
+    var didFinish = false
+}
+
+/// Counts frames as they land, so "did anything arrive after the stop" is answerable.
+@MainActor
+private final class FrameCounter {
+    var count = 0
 }
 
 @MainActor
@@ -232,5 +241,77 @@ struct CompositeNDIServiceTests {
         #expect(await waitUntil { viewModel.frames[demoSource.id] != nil })
 
         viewModel.stopAll()
+    }
+
+    /// `stopAll` has to mean stop. The merge tasks belong to the composite, not to either
+    /// child, so forwarding alone would leave them running and the stream open forever;
+    /// the view model cancelling its own iteration is what used to hide that.
+    @Test func stopAllEndsTheDiscoveryStreamAndTheDemoFeed() async {
+        let demo = MockNDIService(singleSource: demoSource)
+        let composite = CompositeNDIService(real: StubNDIService(), demo: demo)
+
+        let latest = LatestSources()
+        let discovery = Task { @MainActor in
+            for await sources in composite.discoverSources() {
+                latest.ids = sources.map(\.id)
+            }
+            latest.didFinish = true
+        }
+
+        let frames = FrameCounter()
+        let receiving = Task { @MainActor in
+            for await _ in composite.startReceiving(from: demoSource, bandwidth: .highest) {
+                frames.count += 1
+            }
+        }
+
+        #expect(await waitUntil { latest.ids == [demoSource.id] })
+        #expect(await waitUntil { frames.count > 0 })
+        #expect(!latest.didFinish)
+
+        composite.stopAll()
+
+        // The stream ends on its own; nobody cancelled the iteration.
+        #expect(await waitUntil { latest.didFinish })
+
+        // And the demo capture loop is done: whatever was in flight may land, but the
+        // count must stop moving.
+        try? await Task.sleep(for: .milliseconds(300))
+        let settled = frames.count
+        try? await Task.sleep(for: .milliseconds(500))
+        #expect(frames.count == settled)
+
+        discovery.cancel()
+        receiving.cancel()
+    }
+
+    /// Dropping the stream still works, and does not leave a dead session behind on a
+    /// service that lives for the process.
+    @Test func droppingTheDiscoveryStreamStopsTheMergeWithoutStopAll() async {
+        let real = StubNDIService()
+        real.discovered = [camera]
+        let composite = CompositeNDIService(real: real, demo: StubNDIService())
+
+        let latest = LatestSources()
+        let task = Task { @MainActor in
+            for await sources in composite.discoverSources() {
+                latest.ids = sources.map(\.id)
+            }
+            latest.didFinish = true
+        }
+        #expect(await waitUntil { latest.ids == [camera.id] })
+
+        task.cancel()
+        #expect(await waitUntil { latest.didFinish })
+
+        // A second stream still works afterwards.
+        let second = LatestSources()
+        let secondTask = Task { @MainActor in
+            for await sources in composite.discoverSources() {
+                second.ids = sources.map(\.id)
+            }
+        }
+        #expect(await waitUntil { second.ids == [camera.id] })
+        secondTask.cancel()
     }
 }
