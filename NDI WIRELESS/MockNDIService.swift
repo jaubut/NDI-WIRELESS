@@ -24,9 +24,25 @@ private nonisolated final class MockReceiver: Sendable {
     private struct State {
         var accumulator = FrameStatsAccumulator()
         var isGlitching = false
+        /// The capture loop, so a stop path can end it. `RealNDIService` cancels its loop
+        /// on `stopReceiving`; this one used to drop its bookkeeping and leave the loop
+        /// running, which made the mock's `stopAll` a promise it did not keep.
+        var task: Task<Void, Never>?
     }
 
     private let state = Mutex(State())
+
+    func attach(_ task: Task<Void, Never>) {
+        state.withLock { (s: inout State) -> Void in s.task = task }
+    }
+
+    func cancel() {
+        let task = state.withLock { (s: inout State) -> Task<Void, Never>? in
+            defer { s.task = nil }
+            return s.task
+        }
+        task?.cancel()
+    }
 
     var accumulator: FrameStatsAccumulator {
         state.withLock { (s: inout State) -> FrameStatsAccumulator in s.accumulator }
@@ -116,8 +132,8 @@ final class MockNDIService: NDIService {
 
         return AsyncStream { continuation in
             let initial = [
-                NDISource(id: "obs-1", name: "OBS (Studio)", ipAddress: "192.168.1.10"),
-                NDISource(id: "camera-1", name: "PTZ Camera 1", ipAddress: "192.168.1.20"),
+                NDISource(id: "obs-1", name: "Camera A", ipAddress: "192.168.1.10"),
+                NDISource(id: "camera-1", name: "Camera B", ipAddress: "192.168.1.20"),
             ]
             continuation.yield(initial)
 
@@ -125,8 +141,8 @@ final class MockNDIService: NDIService {
                 try? await Task.sleep(for: .seconds(2))
                 guard !Task.isCancelled else { return }
                 let updated = initial + [
-                    NDISource(id: "vmix-1", name: "vMix Output", ipAddress: "192.168.1.30"),
-                    NDISource(id: "ndi-hx-1", name: "NDI HX Camera", ipAddress: "192.168.1.40"),
+                    NDISource(id: "vmix-1", name: "Camera C", ipAddress: "192.168.1.30"),
+                    NDISource(id: "ndi-hx-1", name: "Camera D", ipAddress: "192.168.1.40"),
                 ]
                 continuation.yield(updated)
             }
@@ -187,6 +203,8 @@ final class MockNDIService: NDIService {
                 continuation.finish()
             }
 
+            receiver.attach(task)
+
             continuation.onTermination = { _ in
                 task.cancel()
             }
@@ -205,11 +223,14 @@ final class MockNDIService: NDIService {
 
     func stopReceiving(from source: NDISource) {
         activeReceivers.remove(source.id)
-        receiverStates.removeValue(forKey: source.id)
+        receiverStates.removeValue(forKey: source.id)?.cancel()
     }
 
     func stopAll() {
         activeReceivers.removeAll()
+        for receiver in receiverStates.values {
+            receiver.cancel()
+        }
         receiverStates.removeAll()
     }
 
