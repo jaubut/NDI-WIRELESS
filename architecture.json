@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10",
+  "generatedAt": "2026-09-11",
   "repo": "ndi-wireless",
   "intent": "TLS Viewer (NDI Wireless) — iOS/iPadOS NDI monitor for wireless on-set video: discovers NDI sources on the network, shows a single monitor or a multi-view grid, with per-frame monitor tools (histogram, false colour); a mock NDI service stands in on the simulator. Correctness bar: frames render at source rate without leaking buffers, tools are pure per-frame processors, discovery survives network changes.",
   "targets": [
@@ -54,8 +54,59 @@
           ]
         },
         {
+          "path": "NDI WIRELESS/AboutView.swift",
+          "lines": 133,
+          "kind": "view",
+          "exports": [
+            "AboutView",
+            "ThirdPartyLicensesView"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "SwiftUI"
+          ]
+        },
+        {
+          "path": "NDI WIRELESS/CompositeNDIService.swift",
+          "lines": 127,
+          "kind": "lib",
+          "exports": [
+            "CompositeNDIService",
+            "isDemo()",
+            "discoverSources()",
+            "startReceiving()",
+            "stopReceiving()",
+            "stopAll()",
+            "stats()",
+            "reconnect()",
+            "CompositeNDIService.demoIDPrefix",
+            "CompositeNDIService.demoSource",
+            "MergedSources.real",
+            "MergedSources.demo"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "CoreGraphics",
+            "Foundation"
+          ]
+        },
+        {
           "path": "NDI WIRELESS/ContentView.swift",
-          "lines": 116,
+          "lines": 141,
           "kind": "view",
           "exports": [
             "ContentView",
@@ -71,7 +122,7 @@
             ".single",
             ".multi"
           ],
-          "sheets": 1,
+          "sheets": 2,
           "externals": [
             "SwiftUI",
             "UIKit"
@@ -140,7 +191,7 @@
         },
         {
           "path": "NDI WIRELESS/MockNDIService.swift",
-          "lines": 231,
+          "lines": 264,
           "kind": "lib",
           "exports": [
             "setGlitching()",
@@ -197,7 +248,7 @@
         },
         {
           "path": "NDI WIRELESS/MonitorViewModel.swift",
-          "lines": 442,
+          "lines": 474,
           "kind": "lib",
           "exports": [
             "LayoutMode",
@@ -233,6 +284,8 @@
             "MonitorViewModel.rebuildAfterSeconds",
             "MonitorViewModel.rediscoverAfterSeconds",
             "MonitorViewModel.receivingSourceIDs",
+            "MonitorViewModel.screenshotModeArgument",
+            "MonitorViewModel.screenshotGridArgument",
             "MonitorViewModel.isFalseColorActive",
             "MonitorViewModel.isHistogramActive"
           ],
@@ -329,7 +382,7 @@
         },
         {
           "path": "NDI WIRELESS/NDI_WIRELESSApp.swift",
-          "lines": 22,
+          "lines": 27,
           "kind": "lib",
           "exports": [
             "NDI_WIRELESSApp"
@@ -430,7 +483,7 @@
         },
         {
           "path": "NDI WIRELESS/SourceDiscoveryView.swift",
-          "lines": 74,
+          "lines": 98,
           "kind": "view",
           "exports": [
             "SourceDiscoveryView",
@@ -542,6 +595,60 @@
             "HistogramView.swift"
           ]
         },
+        "NDIService": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "NDISource": {
+          "module": "NDI WIRELESS/NDISource.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/NDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
+        "cancel": {
+          "module": "NDI WIRELESS/RealNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NetworkPathMonitor.swift"
+          ]
+        },
+        "NDIBandwidthMode": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/SingleMonitorView.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "FrameStats": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift",
+            "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
         "MonitorViewModel": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
@@ -605,6 +712,12 @@
             "NDI WIRELESS/ContentView.swift"
           ]
         },
+        "AboutView": {
+          "module": "NDI WIRELESS/AboutView.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
         "startDiscovery": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
@@ -625,16 +738,6 @@
             "NDI WIRELESS/RealNDIService.swift"
           ]
         },
-        "FrameStats": {
-          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/NDIService.swift",
-            "NDI WIRELESS/RealNDIService.swift",
-            "NDI WIRELESS/StatsOverlayView.swift"
-          ]
-        },
         "withTransportCounters": {
           "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
           "callers": [
@@ -653,45 +756,6 @@
           "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
           "callers": [
             "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/StatsOverlayView.swift"
-          ]
-        },
-        "NDIService": {
-          "module": "NDI WIRELESS/NDIService.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/RealNDIService.swift"
-          ]
-        },
-        "NDISource": {
-          "module": "NDI WIRELESS/NDISource.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/MultiViewGrid.swift",
-            "NDI WIRELESS/NDIService.swift",
-            "NDI WIRELESS/RealNDIService.swift",
-            "NDI WIRELESS/SingleMonitorView.swift",
-            "NDI WIRELESS/SourceDiscoveryView.swift"
-          ]
-        },
-        "cancel": {
-          "module": "NDI WIRELESS/RealNDIService.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/NetworkPathMonitor.swift"
-          ]
-        },
-        "NDIBandwidthMode": {
-          "module": "NDI WIRELESS/NDIService.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/RealNDIService.swift",
-            "NDI WIRELESS/SingleMonitorView.swift",
-            "NDI WIRELESS/SourceDiscoveryView.swift",
             "NDI WIRELESS/StatsOverlayView.swift"
           ]
         },
@@ -728,6 +792,21 @@
           "module": "HistogramProcessor.swift",
           "callers": [
             "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "CompositeNDIService": {
+          "module": "NDI WIRELESS/CompositeNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NDI_WIRELESSApp.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
+          ]
+        },
+        "isDemo": {
+          "module": "NDI WIRELESS/CompositeNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/SourceDiscoveryView.swift"
           ]
         },
         "FrameStats.msSinceLastFrame": {
@@ -871,6 +950,12 @@
             "NDI WIRELESS/NDI_WIRELESSApp.swift"
           ]
         },
+        "CompositeNDIService.demoSource": {
+          "module": "NDI WIRELESS/CompositeNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
         "MonitorViewModel.primarySourceID": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
@@ -963,6 +1048,7 @@
           "version": null,
           "modules": [
             "HistogramProcessor.swift",
+            "NDI WIRELESS/CompositeNDIService.swift",
             "NDI WIRELESS/FalseColorProcessor.swift",
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/MonitorViewModel.swift",
@@ -979,6 +1065,7 @@
         "Foundation": {
           "version": null,
           "modules": [
+            "NDI WIRELESS/CompositeNDIService.swift",
             "NDI WIRELESS/FrameStatsAccumulator.swift",
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/MonitorTool.swift",
@@ -1005,6 +1092,7 @@
           "version": null,
           "modules": [
             "HistogramView.swift",
+            "NDI WIRELESS/AboutView.swift",
             "NDI WIRELESS/ContentView.swift",
             "NDI WIRELESS/MultiViewGrid.swift",
             "NDI WIRELESS/NDI_WIRELESSApp.swift",
