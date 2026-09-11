@@ -288,6 +288,28 @@ final class RealNDIService: NDIService {
         findInstance = nil
     }
 
+    /// Re-point the existing receiver at its source. Never destroys anything: the
+    /// ownership rule at the top of this file says only the capture loop may do that,
+    /// and this call is exactly the SDK's way of keeping the loop's instance alive
+    /// across a network change (`Recv.h:187`).
+    ///
+    /// `withRecv` takes the same lock `close()` takes, so a re-point can never overlap
+    /// the destroy; on a receiver that has already gone it does nothing.
+    func reconnect(_ source: NDISource) {
+        guard let handle = receivers[source.id] else { return }
+        let sourceID = source.id
+
+        _ = handle.withRecv { recv -> Void in
+            guard let ndiNameCStr = strdup(sourceID) else { return }
+            defer { free(ndiNameCStr) }
+
+            var ndiSource = NDIlib_source_t()
+            ndiSource.p_ndi_name = UnsafePointer(ndiNameCStr)
+            ndiSource.p_url_address = nil
+            NDIlib_recv_connect(recv, &ndiSource)
+        }
+    }
+
     // MARK: - Stats
 
     func stats(for source: NDISource) -> FrameStats? {

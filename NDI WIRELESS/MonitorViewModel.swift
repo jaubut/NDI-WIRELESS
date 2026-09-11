@@ -44,6 +44,9 @@ final class MonitorViewModel {
     // MARK: - Private
 
     private let service: NDIService
+    /// Owned here, not by a service: the transport stays transport, and the mock does
+    /// not have to reimplement the recovery policy to be useful.
+    private let pathMonitor: NetworkPathMonitor
     private(set) var falseColorProcessor = FalseColorProcessor()
     private(set) var histogramProcessor = HistogramProcessor()
     var histogramData: [String: HistogramData] = [:]
@@ -51,17 +54,35 @@ final class MonitorViewModel {
     private var receiveTasks: [String: Task<Void, Never>] = [:]
     private var histogramTask: Task<Void, Never>?
     private var statsTask: Task<Void, Never>?
+    private var pathMonitorTask: Task<Void, Never>?
+    private var recoveryTask: Task<Void, Never>?
 
     /// A feed with no new frame for this long is reported as reconnecting.
     static let starvedAfterMilliseconds: Double = 2000
 
-    init(service: NDIService) {
+    /// Escalation ladder timings. Properties rather than constants so the resilience
+    /// tests can drive the whole ladder without sleeping through it; nothing in the app
+    /// changes them from the defaults.
+    var rebuildAfterSeconds: Double = 6
+    var rediscoverAfterSeconds: Double = 20
+
+    init(service: NDIService, pathMonitor: NetworkPathMonitor = NetworkPathMonitor()) {
         self.service = service
+        self.pathMonitor = pathMonitor
+    }
+
+    /// Ids whose receive task is still running and still writing `frames`.
+    ///
+    /// The resilience tests check the ordering property against this: no stop path may
+    /// reach the transport while one of these is live.
+    var receivingSourceIDs: Set<String> {
+        Set(receiveTasks.compactMap { $0.value.isCancelled ? nil : $0.key })
     }
 
     // MARK: - Discovery
 
     func startDiscovery() {
+        startPathMonitoring()
         guard !isDiscovering else { return }
         isDiscovering = true
         discoveryTask = Task { @MainActor [weak self] in
@@ -79,6 +100,18 @@ final class MonitorViewModel {
         discoveryTask?.cancel()
         discoveryTask = nil
         isDiscovering = false
+    }
+
+    /// A finder bound to the interface that just went away will not find anything on the
+    /// new one. Rebuild it — but only if discovery was already running: recovery must
+    /// never switch discovery on behind the user's back.
+    ///
+    /// Tiles are safe across this: they render from `sourceIndex`, which is upserted and
+    /// never evicted, so the empty first yield of a fresh finder cannot blank the wall.
+    private func restartDiscovery() {
+        guard isDiscovering else { return }
+        stopDiscovery()
+        startDiscovery()
     }
 
     // MARK: - Receiving
@@ -226,6 +259,123 @@ final class MonitorViewModel {
         return .reconnecting(since: now)
     }
 
+    // MARK: - Network path
+
+    /// Watch the path for as long as the app is monitoring. Idempotent: a recovery pass
+    /// restarts discovery through `startDiscovery()` and must not stack a second watcher.
+    private func startPathMonitoring() {
+        guard pathMonitorTask == nil else { return }
+        let monitor = pathMonitor
+        pathMonitorTask = Task { @MainActor [weak self] in
+            for await change in monitor.changes() {
+                guard let self else { return }
+                self.handlePathChange(change)
+            }
+        }
+    }
+
+    private func stopPathMonitoring() {
+        pathMonitorTask?.cancel()
+        pathMonitorTask = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+    }
+
+    /// The network moved under us. Recover in three steps, cheapest first.
+    ///
+    /// `frames` is never cleared at any step: the last good picture stays on screen under
+    /// the chip, because a black tile mid-take reads as a dead camera. `connectionState`
+    /// is left to the 1 Hz poll, which decides from evidence — a path change that did not
+    /// actually interrupt the feed must not raise a chip.
+    ///
+    /// Internal rather than private so the resilience tests can drive the ladder without
+    /// a real `NWPathMonitor`.
+    func handlePathChange(_ change: PathChange) {
+        // Cancel before replace. Two path changes 200 ms apart must leave one ladder
+        // running, not two racing to rebuild the same receiver.
+        recoveryTask?.cancel()
+        recoveryTask = nil
+
+        // A path that is down has nothing to reconnect to. The poll raises the chip on
+        // its own, and the next change — the path coming back — runs the ladder.
+        guard change.isSatisfied else { return }
+
+        // Step 1, now: re-point every live receiver, and put a fresh finder on the new
+        // path so `sourceIndex` picks up anything that moved.
+        for sourceID in selectedSources {
+            guard let source = sourceIndex[sourceID] else { continue }
+            service.reconnect(source)
+        }
+        restartDiscovery()
+
+        guard !selectedSources.isEmpty else { return }
+
+        let baseline = frameCounts()
+        let rebuildDelay = rebuildAfterSeconds
+        let rediscoverDelay = rediscoverAfterSeconds
+
+        recoveryTask = Task { @MainActor [weak self] in
+            // Step 2: the re-point did not take, so rebuild the receiver outright.
+            try? await Task.sleep(for: .seconds(rebuildDelay))
+            guard !Task.isCancelled else { return }
+            let rebuilt = self?.rebuildStarvedReceivers(since: baseline) ?? [:]
+
+            // Step 3: still nothing. A fresh finder, and the chip stays up.
+            try? await Task.sleep(for: .seconds(max(0, rediscoverDelay - rebuildDelay)))
+            guard !Task.isCancelled else { return }
+            self?.restartDiscoveryIfStarved(since: rebuilt)
+        }
+    }
+
+    /// Frames taken delivery of per selected source, right now.
+    ///
+    /// Health is pulled from the transport rather than read from `stats`, which only
+    /// refreshes while the chrome is up — recovery has to work with the chrome hidden.
+    private func frameCounts() -> [String: Int64] {
+        var counts: [String: Int64] = [:]
+        for sourceID in selectedSources {
+            guard let source = sourceIndex[sourceID],
+                  let snapshot = service.stats(for: source) else { continue }
+            counts[sourceID] = snapshot.received
+        }
+        return counts
+    }
+
+    /// Sources with no *new* frame since `baseline` and nobody on the other end.
+    ///
+    /// Counting frames rather than watching a clock keeps this exact: `received` only
+    /// advances on a timestamp the receiver has not seen before. Both halves are
+    /// required, per the plan — a feed that is connected and momentarily quiet is not
+    /// worth tearing down mid-take.
+    private func starvedSources(since baseline: [String: Int64]) -> [NDISource] {
+        selectedSources.compactMap { sourceID in
+            guard let source = sourceIndex[sourceID] else { return nil }
+            // Nothing is receiving this id at all: that is the worst case, not a healthy one.
+            guard let snapshot = service.stats(for: source) else { return source }
+            guard snapshot.connections == 0 else { return nil }
+            guard let before = baseline[sourceID] else { return source }
+            return snapshot.received > before ? nil : source
+        }
+    }
+
+    /// Step 2. Rebuilds through `resubscribe`, so selection, order and the last frame are
+    /// untouched and the old task is cancelled before the new one is stored.
+    /// - Returns: the frame counts to judge step 3 against.
+    @discardableResult
+    private func rebuildStarvedReceivers(since baseline: [String: Int64]) -> [String: Int64] {
+        for source in starvedSources(since: baseline) {
+            resubscribe(source: source, bandwidth: bandwidth[source.id] ?? .highest)
+        }
+        return frameCounts()
+    }
+
+    /// Step 3. The receiver was rebuilt and still has nothing: the SDK's own finder is
+    /// the last thing left that could still be bound to the dead interface.
+    private func restartDiscoveryIfStarved(since baseline: [String: Int64]) {
+        guard !starvedSources(since: baseline).isEmpty else { return }
+        restartDiscovery()
+    }
+
     // MARK: - Tools
 
     func toggleTool(_ tool: MonitorTool) {
@@ -268,6 +418,10 @@ final class MonitorViewModel {
     }
 
     func stopAll() {
+        // Cancel first, then stop — the same order as `stopReceiving(_:)`, so no stop
+        // ever reaches the transport while a receive task is still writing frames.
+        receiveTasks.values.forEach { $0.cancel() }
+        receiveTasks.removeAll()
         // Resolved through the session index, not through discovery: a source that
         // dropped off the network still has to be stoppable.
         for sourceID in selectedSources {
@@ -276,12 +430,11 @@ final class MonitorViewModel {
             }
         }
         selectedSources.removeAll()
-        receiveTasks.values.forEach { $0.cancel() }
-        receiveTasks.removeAll()
         frames.removeAll()
         histogramData.removeAll()
         primarySourceID = nil
         stopStatsPolling()
+        stopPathMonitoring()
         stopDiscovery()
         service.stopAll()
     }

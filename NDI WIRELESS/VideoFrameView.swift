@@ -38,6 +38,10 @@ struct VideoFrameView: View {
                     // it deserves the full-resolution filter.
                     .interpolation(isProxy ? .medium : .high)
                     .aspectRatio(contentMode: .fit)
+                    // Held, not live. Dimmed rather than blanked: the last good frame is
+                    // still the most useful thing on screen, but it must not be mistaken
+                    // for what the camera is pointing at right now.
+                    .opacity(status.isLive ? 1 : 0.55)
             } else {
                 VStack(spacing: 8) {
                     if status.isLive {

@@ -60,4 +60,11 @@ protocol NDIService: AnyObject {
     /// A snapshot of receive health for a source, or nil when nothing is receiving it.
     /// Pull this; never push it — the frame rate is not a UI refresh rate.
     func stats(for source: NDISource) -> FrameStats?
+
+    /// Re-point an existing receiver at its source after the network moved.
+    ///
+    /// The cheap half of the recovery ladder: it must never destroy or replace a
+    /// receiver, only ask the one that is already there to find its sender again. A
+    /// source that is not being received is a no-op, not an error.
+    func reconnect(_ source: NDISource)
 }
