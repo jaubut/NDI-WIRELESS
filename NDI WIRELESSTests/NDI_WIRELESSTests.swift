@@ -55,11 +55,15 @@ struct NDI_WIRELESSTests {
 
     /// Version and build are read straight out of the bundle by the About screen; these
     /// are the numbers App Store Connect matches an upload against.
+    ///
+    /// 1.0 (1) is already on the store, so neither number can be reused — an upload that
+    /// repeats them is rejected. Pinning both here means a forgotten bump fails on the
+    /// simulator rather than at the end of an archive-and-upload.
     @Test func theBundleCarriesTheShippingIdentityAndVersion() {
         let info = Bundle.main.infoDictionary
         #expect(info?["CFBundleDisplayName"] as? String == "TLS Viewer")
         #expect(info?["CFBundleIdentifier"] as? String == "TechLabStudio.NDI-WIRELESS")
-        #expect(info?["CFBundleShortVersionString"] as? String == "1.0")
-        #expect(info?["CFBundleVersion"] as? String == "1")
+        #expect(info?["CFBundleShortVersionString"] as? String == "1.1")
+        #expect(info?["CFBundleVersion"] as? String == "2")
     }
 }
