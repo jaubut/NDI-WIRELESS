@@ -12,25 +12,7 @@ struct SourceDiscoveryView: View {
 
     var body: some View {
         List(viewModel.discoveredSources) { source in
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(source.name)
-                        .font(.headline)
-                    Text(source.ipAddress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if viewModel.selectedSources.contains(source.id) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .imageScale(.large)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                viewModel.toggleSource(source)
-            }
+            row(for: source)
         }
         .navigationTitle("NDI Sources")
         .overlay {
@@ -42,5 +24,50 @@ struct SourceDiscoveryView: View {
                 )
             }
         }
+    }
+
+    @ViewBuilder
+    private func row(for source: NDISource) -> some View {
+        let isSelected = viewModel.selectedSources.contains(source.id)
+
+        HStack {
+            VStack(alignment: .leading) {
+                Text(source.name)
+                    .font(.headline)
+                Text(source.ipAddress)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                viewModel.toggleSource(source)
+            }
+
+            Spacer()
+
+            // Reachable here so grid sources can be switched to proxy without going
+            // through the single view first.
+            Picker("Bandwidth", selection: bandwidthBinding(for: source.id)) {
+                ForEach(NDIBandwidthMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 130)
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .imageScale(.large)
+            }
+        }
+    }
+
+    private func bandwidthBinding(for sourceID: String) -> Binding<NDIBandwidthMode> {
+        Binding(
+            get: { viewModel.bandwidth[sourceID] ?? .highest },
+            set: { viewModel.setBandwidth($0, for: sourceID) }
+        )
     }
 }

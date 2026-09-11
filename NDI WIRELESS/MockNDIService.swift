@@ -14,6 +14,17 @@ import UIKit
 
 final class MockNDIService: NDIService {
     private var activeReceivers: Set<String> = []
+    private var accumulators: [String: FrameStatsAccumulator] = [:]
+
+    // Read from the detached capture loop, so isolation is declared rather than inferred
+    // (the module defaults to MainActor).
+
+    /// The mock's nominal rate. Frames are stamped from it so the accumulator dedupes
+    /// and counts exactly the way it does on the real transport.
+    private nonisolated static let frameRateN: Int32 = 30
+    private nonisolated static let frameRateD: Int32 = 1
+    /// One frame in 100-nanosecond units, matching the SDK's timestamp scale.
+    private nonisolated static let timestampStep: Int64 = 333_333
 
     func discoverSources() -> AsyncStream<[NDISource]> {
         AsyncStream { continuation in
@@ -39,18 +50,37 @@ final class MockNDIService: NDIService {
         }
     }
 
-    func startReceiving(from source: NDISource) -> AsyncStream<CGImage> {
-        activeReceivers.insert(source.id)
+    func startReceiving(from source: NDISource, bandwidth: NDIBandwidthMode) -> AsyncStream<CGImage> {
+        let sourceID = source.id
+        activeReceivers.insert(sourceID)
+
+        let accumulator = FrameStatsAccumulator()
+        accumulators[sourceID] = accumulator
+
+        // `.lowest` stands in for the SDK's proxy stream: same picture, half the size.
+        let width = bandwidth == .lowest ? 480 : 960
+        let height = bandwidth == .lowest ? 270 : 540
+        let seed = CGFloat(abs(sourceID.hashValue % 100)) / 100.0
 
         return AsyncStream { continuation in
             let task = Task.detached {
-                var hue: CGFloat = CGFloat(abs(source.id.hashValue % 100)) / 100.0
+                var hue = seed
+                var tick: Int64 = 0
                 while !Task.isCancelled {
-                    if let image = Self.generateTestPattern(
-                        width: 960, height: 540, hue: hue
+                    tick += 1
+                    let isNewFrame = accumulator.record(
+                        timestamp: tick * Self.timestampStep,
+                        timecode: tick * Self.timestampStep,
+                        frameRateN: Self.frameRateN,
+                        frameRateD: Self.frameRateD
+                    )
+
+                    if isNewFrame, let image = Self.generateTestPattern(
+                        width: width, height: height, hue: hue
                     ) {
                         continuation.yield(image)
                     }
+
                     hue += 0.005
                     if hue > 1 { hue = 0 }
                     try? await Task.sleep(for: .milliseconds(33))
@@ -64,12 +94,18 @@ final class MockNDIService: NDIService {
         }
     }
 
+    func stats(for source: NDISource) -> FrameStats? {
+        accumulators[source.id]?.snapshot()
+    }
+
     func stopReceiving(from source: NDISource) {
         activeReceivers.remove(source.id)
+        accumulators.removeValue(forKey: source.id)
     }
 
     func stopAll() {
         activeReceivers.removeAll()
+        accumulators.removeAll()
     }
 
     // MARK: - Test Pattern Generation (CoreGraphics only)

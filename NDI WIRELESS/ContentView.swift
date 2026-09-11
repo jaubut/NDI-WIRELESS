@@ -13,7 +13,6 @@ import UIKit
 struct ContentView: View {
     @State var viewModel: MonitorViewModel
     @State private var showSourcePicker = false
-    @State private var showUI = true
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -31,7 +30,7 @@ struct ContentView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if showUI && !viewModel.selectedSources.isEmpty {
+                if viewModel.isChromeVisible && !viewModel.selectedSources.isEmpty {
                     ToolboxView(viewModel: viewModel)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -39,12 +38,12 @@ struct ContentView: View {
             .onTapGesture {
                 guard !viewModel.selectedSources.isEmpty else { return }
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    showUI.toggle()
+                    viewModel.isChromeVisible.toggle()
                 }
             }
-            .toolbar(showUI ? .visible : .hidden, for: .navigationBar)
+            .toolbar(viewModel.isChromeVisible ? .visible : .hidden, for: .navigationBar)
             #if os(iOS)
-            .statusBarHidden(!showUI)
+            .statusBarHidden(!viewModel.isChromeVisible)
             #endif
             .toolbar {
                 #if os(iOS)

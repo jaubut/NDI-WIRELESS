@@ -4,7 +4,7 @@
 
 ### Change Plan — onset-hardening (2026-09-11, rev 3 — rev 2 after analyst reconciliation, rev 3 amends the PR-0 Files rows after drift check)
 **Request:** (1) Receiver bandwidth mode toggle (highest/lowest) + live stats overlay (fps, ms since last frame, dropped/late) produced by the service layer; (2) NWPathMonitor-driven resilience so discovery re-runs and receivers rebuild on a Wi-Fi path change without the user re-picking sources.
-**Ships as three PRs, sequential, one builder:** **PR-0** = simulator build unblock (must land first — nothing below is testable until it does), **PR-A** = bandwidth + stats, **PR-B** = resilience. Do not parallelise: five files are touched by both A and B. If only one feature PR lands before the next gig, hoist the source-directory fix into PR-A — it is the highest on-set value item here.
+**Ships as three PRs, sequential, one builder:** **PR-0** = simulator build unblock ✅ shipped #2 (must land first — nothing below is testable until it does), **PR-A** = bandwidth + stats, **PR-B** = resilience. Do not parallelise: five files are touched by both A and B. If only one feature PR lands before the next gig, hoist the source-directory fix into PR-A — it is the highest on-set value item here.
 
 **Baseline the PRs stack on:** commit `13c4c7d` (rebased as `00f3680` on the PR-0 branch) landed the March working tree — tool toggles, pinch-zoom, tap-to-hide chrome — plus keep-awake. Single-module WIP below this workflow's floor, committed 2026-09-10 before this plan; `origin/main` (`f7f44c4`, archmap-only) does not compile without it. It carries no plan of its own by design; its contract deltas (MonitorViewModel `activeTools`/`toggleTool`/`histogramData`, VideoFrameView `falseColorProcessor`/`histogramData`) are the pre-plan state this plan's tables were written against.
 
@@ -47,10 +47,10 @@
 
 | file | PR | change | lines now → after (cap 600) |
 |---|---|---|---|
-| `NDI WIRELESS.xcodeproj/project.pbxproj` | **0** | `OTHER_LDFLAGS` (:464,:520) and `SWIFT_ACTIVE_COMPILATION_CONDITIONS` (:471,:527) become `[sdk=iphoneos*]`-scoped so the simulator builds Mock-only | n/a |
-| `NDI WIRELESS.xcodeproj/xcshareddata/xcschemes/NDI WIRELESS.xcscheme` | **0** | **NEW** shared scheme (was implicit/autocreated, nothing on disk) so `xcodebuild -scheme` is deterministic on any machine; Test action carries both test targets | n/a |
-| `NDI-WIRELESS-Info.plist` | **0** | committed for the first time — both configs reference it via `INFOPLIST_FILE` and it carries `NSBonjourServices = _ndi._tcp` (NDI discovery), but it was untracked, so a clean clone failed at `ProcessInfoPlistFile` before reaching the link step (found during PR-0; drift check 2026-09-10) | 10 lines |
-| `STATE.md` | **0** | this plan, committed with the PR it governs (was untracked in the main checkout) | n/a |
+| `NDI WIRELESS.xcodeproj/project.pbxproj` | **0** ✅ #2 | `OTHER_LDFLAGS` (:464,:520) and `SWIFT_ACTIVE_COMPILATION_CONDITIONS` (:471,:527) become `[sdk=iphoneos*]`-scoped so the simulator builds Mock-only | n/a |
+| `NDI WIRELESS.xcodeproj/xcshareddata/xcschemes/NDI WIRELESS.xcscheme` | **0** ✅ #2 | **NEW** shared scheme (was implicit/autocreated, nothing on disk) so `xcodebuild -scheme` is deterministic on any machine; Test action carries both test targets | n/a |
+| `NDI-WIRELESS-Info.plist` | **0** ✅ #2 | committed for the first time — both configs reference it via `INFOPLIST_FILE` and it carries `NSBonjourServices = _ndi._tcp` (NDI discovery), but it was untracked, so a clean clone failed at `ProcessInfoPlistFile` before reaching the link step (found during PR-0; drift check 2026-09-10) | 10 lines |
+| `STATE.md` | **0** ✅ #2 | this plan, committed with the PR it governs (was untracked in the main checkout) | n/a |
 | `NDI WIRELESS/NDIService.swift` | A+B | +`NDIBandwidthMode`, +`SourceConnectionState`, 3 protocol edits | 24 → ~70 ✓ |
 | `NDI WIRELESS/FrameStatsAccumulator.swift` | A | **NEW: `FrameStats`, `FrameStatsAccumulator`** — pure Swift, `nonisolated`+`Sendable`, lock-guarded, no NDI types | 0 → ~120 ✓ |
 | `NDI WIRELESS/RealNDIService.swift` | A+B | bandwidth param at `recv_create_v3_t` (:139); read `.timestamp` and dedupe before CGImage conversion (net-new read); per-source accumulator; `get_performance` two-struct + `get_no_connections` in `stats(for:)`; `reconnect` via `NDIlib_recv_connect`; **destroy-by-ownership** in both loops; `findInstance` demoted to bookkeeping (:76,:109-112,:208-211); `NDIlib_destroy()` out of `deinit`; find timeout 1000 → 250 ms | 285 → ~440 ✓ **no split** — the "only file touching the NDI C API" rule outranks a cosmetic split, and the pure-Swift part already leaves in `FrameStatsAccumulator.swift` |

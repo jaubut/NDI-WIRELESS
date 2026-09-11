@@ -22,7 +22,7 @@
 //
 //  4. Add the NDI_ENABLED Swift compiler flag:
 //     - Go to Build Settings > Swift Compiler - Custom Flags > Active Compilation Conditions
-//     - Add: NDI_ENABLED
+//     - Add: NDI_ENABLED (device SDK only — the archive has no arm64 simulator slice)
 //
 //  5. Add required frameworks (Link Binary With Libraries):
 //     - Accelerate.framework
@@ -34,29 +34,77 @@
 //
 //  7. Change NDI_WIRELESSApp.swift to use RealNDIService() instead of MockNDIService()
 //
+//  OWNERSHIP RULE — read before editing a teardown path:
+//  whoever creates a C instance destroys it, on its own exit path, and nobody else.
+//  The detached capture loop owns its recv/framesync pair; the discovery loop owns its
+//  finder. `stopReceiving`, `stopAll` and stream termination may only *cancel* and clear
+//  bookkeeping. There is deliberately no `deinit`: this service lives for the process
+//  lifetime, and `NDIlib_destroy()` under live detached loops is a crash, not a cleanup.
+//
 
 import CoreGraphics
 import Foundation
 
 #if NDI_ENABLED
 
-final class RealNDIService: NDIService {
-    private var findInstance: NDIlib_find_instance_t?
-    private var receivers: [String: ReceiverState] = [:]
+import Synchronization
 
-    /// Tracks the state of an active NDI receiver for a single source.
-    private struct ReceiverState {
-        let recvInstance: NDIlib_recv_instance_t
-        let framesyncInstance: NDIlib_framesync_instance_t
+/// One receiver's C instances plus its stats.
+///
+/// The pair is destroyed exactly once, by `close()`, which only the owning capture loop
+/// calls when it exits. Readers reach the recv instance through `withRecv`, which takes
+/// the same lock `close()` takes, so a stats pull can never overlap the destroy.
+/// `nonisolated` on the declaration, not left to inference: the module defaults to
+/// MainActor, and this handle is read and closed from the detached capture loop.
+private nonisolated final class ReceiverHandle: @unchecked Sendable {
+    let stats = FrameStatsAccumulator()
+
+    /// Pulled by the owning loop only, which is why it needs no lock: the loop has
+    /// finished by the time `close()` runs.
+    let framesync: NDIlib_framesync_instance_t
+
+    private let recv: NDIlib_recv_instance_t
+    private let isClosed = Mutex(false)
+
+    /// The capture loop, so a stop path can cancel it. Written and read on the main
+    /// actor only — the loop itself never touches it.
+    var task: Task<Void, Never>?
+
+    init(recv: NDIlib_recv_instance_t, framesync: NDIlib_framesync_instance_t) {
+        self.recv = recv
+        self.framesync = framesync
     }
+
+    /// Run `body` against the live receiver, or return nil once it has been destroyed.
+    func withRecv<T>(_ body: (NDIlib_recv_instance_t) -> T) -> T? {
+        isClosed.withLock { (closed: inout Bool) -> T? in
+            closed ? nil : body(recv)
+        }
+    }
+
+    /// Destroy the pair. Called by the owning loop on its way out, and by nobody else.
+    func close() {
+        isClosed.withLock { (closed: inout Bool) -> Void in
+            guard !closed else { return }
+            closed = true
+            NDIlib_framesync_destroy(framesync)
+            NDIlib_recv_destroy(recv)
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+    }
+}
+
+final class RealNDIService: NDIService {
+    /// Bookkeeping only — the discovery loop destroys the finder it created.
+    private var findInstance: NDIlib_find_instance_t?
+    private var discoveryTask: Task<Void, Never>?
+    private var receivers: [String: ReceiverHandle] = [:]
 
     init() {
         NDIlib_initialize()
-    }
-
-    deinit {
-        stopAll()
-        NDIlib_destroy()
     }
 
     // MARK: - Discovery
@@ -68,17 +116,21 @@ final class RealNDIService: NDIService {
             findCreate.p_groups = nil
             findCreate.p_extra_ips = nil
 
-            guard let finder = NDIlib_find_create_v2(&findCreate) else {
+            guard let created = NDIlib_find_create_v2(&findCreate) else {
                 continuation.finish()
                 return
             }
 
+            // Owned by the loop below; the property is a bookkeeping copy that nothing
+            // destroys.
+            nonisolated(unsafe) let finder = created
             self?.findInstance = finder
 
             let task = Task.detached {
                 while !Task.isCancelled {
-                    // Wait up to 1 second for source list changes
-                    _ = NDIlib_find_wait_for_sources(finder, 1000)
+                    // Short wait: a path change should surface in the picker in well
+                    // under a second, and the call returns early when the list changes.
+                    _ = NDIlib_find_wait_for_sources(finder, 250)
 
                     var numSources: UInt32 = 0
                     let sourcesPtr = NDIlib_find_get_current_sources(finder, &numSources)
@@ -101,15 +153,19 @@ final class RealNDIService: NDIService {
 
                     continuation.yield(sources)
                 }
+
+                // Exit path of the loop that created it: the only destroy.
+                NDIlib_find_destroy(finder)
+                continuation.finish()
             }
+
+            self?.discoveryTask = task
 
             continuation.onTermination = { @Sendable [weak self] _ in
                 task.cancel()
                 Task { @MainActor [weak self] in
-                    if let finder = self?.findInstance {
-                        NDIlib_find_destroy(finder)
-                        self?.findInstance = nil
-                    }
+                    self?.findInstance = nil
+                    self?.discoveryTask = nil
                 }
             }
         }
@@ -117,13 +173,17 @@ final class RealNDIService: NDIService {
 
     // MARK: - Receiving
 
-    func startReceiving(from source: NDISource) -> AsyncStream<CGImage> {
+    func startReceiving(from source: NDISource, bandwidth: NDIBandwidthMode) -> AsyncStream<CGImage> {
+        // Cancels any previous receiver for this id and drops its bookkeeping; that
+        // loop destroys its own pair as it unwinds.
         stopReceiving(from: source)
+
+        let sourceID = source.id
 
         return AsyncStream { [weak self] continuation in
             // Build an NDIlib_source_t from the source name.
             // The SDK will use its internal finder to locate the source by name.
-            guard let ndiNameCStr = strdup(source.id) else {
+            guard let ndiNameCStr = strdup(sourceID) else {
                 continuation.finish()
                 return
             }
@@ -136,7 +196,9 @@ final class RealNDIService: NDIService {
             var recvCreate = NDIlib_recv_create_v3_t()
             recvCreate.source_to_connect_to = ndiSource
             recvCreate.color_format = NDIlib_recv_color_format_BGRX_BGRA
-            recvCreate.bandwidth = NDIlib_recv_bandwidth_highest
+            recvCreate.bandwidth = bandwidth == .lowest
+                ? NDIlib_recv_bandwidth_lowest
+                : NDIlib_recv_bandwidth_highest
             recvCreate.allow_video_fields = false
             recvCreate.p_ndi_recv_name = nil
 
@@ -156,67 +218,105 @@ final class RealNDIService: NDIService {
 
             free(ndiNameCStr)
 
-            self?.receivers[source.id] = ReceiverState(
-                recvInstance: recvInstance,
-                framesyncInstance: framesyncInstance
-            )
+            let handle = ReceiverHandle(recv: recvInstance, framesync: framesyncInstance)
+            self?.receivers[sourceID] = handle
 
             let task = Task.detached {
+                let framesync = handle.framesync
                 while !Task.isCancelled {
                     var videoFrame = NDIlib_video_frame_v2_t()
 
                     // Pull a progressive video frame. This always returns immediately.
                     NDIlib_framesync_capture_video(
-                        framesyncInstance,
+                        framesync,
                         &videoFrame,
                         NDIlib_frame_format_type_progressive
                     )
 
                     if videoFrame.xres > 0, videoFrame.yres > 0, videoFrame.p_data != nil {
-                        // Copy the frame data into a CGImage before freeing
-                        if let cgImage = Self.createCGImage(from: &videoFrame) {
+                        // Frame sync repeats the last frame between arrivals, so identity
+                        // is decided *before* the malloc+memcpy: a repeat costs nothing
+                        // and never reaches the view, which is what keeps the histogram
+                        // and false colour from re-grading a frozen picture.
+                        let isNewFrame = handle.stats.record(
+                            timestamp: videoFrame.timestamp,
+                            timecode: videoFrame.timecode,
+                            frameRateN: Int32(videoFrame.frame_rate_N),
+                            frameRateD: Int32(videoFrame.frame_rate_D)
+                        )
+
+                        if isNewFrame, let cgImage = Self.createCGImage(from: &videoFrame) {
                             continuation.yield(cgImage)
                         }
                     }
 
-                    NDIlib_framesync_free_video(framesyncInstance, &videoFrame)
+                    NDIlib_framesync_free_video(framesync, &videoFrame)
 
                     // ~30fps capture rate
                     try? await Task.sleep(for: .milliseconds(33))
                 }
+
+                // Exit path of the loop that created the pair: the only destroy.
+                handle.close()
                 continuation.finish()
             }
+
+            handle.task = task
 
             continuation.onTermination = { @Sendable [weak self] _ in
                 task.cancel()
                 Task { @MainActor [weak self] in
-                    self?.cleanupReceiver(for: source.id)
+                    self?.forgetReceiver(sourceID, ifSame: handle)
                 }
             }
         }
     }
 
     func stopReceiving(from source: NDISource) {
-        cleanupReceiver(for: source.id)
+        guard let handle = receivers.removeValue(forKey: source.id) else { return }
+        handle.cancel()
     }
 
     func stopAll() {
-        for sourceID in Array(receivers.keys) {
-            cleanupReceiver(for: sourceID)
+        for handle in receivers.values {
+            handle.cancel()
         }
+        receivers.removeAll()
 
-        if let finder = findInstance {
-            NDIlib_find_destroy(finder)
-            findInstance = nil
+        discoveryTask?.cancel()
+        discoveryTask = nil
+        findInstance = nil
+    }
+
+    // MARK: - Stats
+
+    func stats(for source: NDISource) -> FrameStats? {
+        guard let handle = receivers[source.id] else { return nil }
+        let local = handle.stats.snapshot()
+
+        // Received and dropped come from two out-structs, not one: dropped frames are
+        // `dropped.video_frames`. "Late" has no SDK equivalent and stays local.
+        let merged = handle.withRecv { recv -> FrameStats in
+            var total = NDIlib_recv_performance_t()
+            var dropped = NDIlib_recv_performance_t()
+            NDIlib_recv_get_performance(recv, &total, &dropped)
+            let connections = Int(NDIlib_recv_get_no_connections(recv))
+            return local.withTransportCounters(
+                received: total.video_frames,
+                dropped: dropped.video_frames,
+                connections: connections
+            )
         }
+        return merged ?? local
     }
 
     // MARK: - Private Helpers
 
-    private func cleanupReceiver(for sourceID: String) {
-        guard let state = receivers.removeValue(forKey: sourceID) else { return }
-        NDIlib_framesync_destroy(state.framesyncInstance)
-        NDIlib_recv_destroy(state.recvInstance)
+    /// Drop bookkeeping for a receiver, but only if a newer one has not taken its slot
+    /// (a bandwidth swap replaces the handle while the old stream is still terminating).
+    private func forgetReceiver(_ sourceID: String, ifSame handle: ReceiverHandle) {
+        guard receivers[sourceID] === handle else { return }
+        receivers.removeValue(forKey: sourceID)
     }
 
     /// Convert an NDI BGRX video frame to a CGImage.
