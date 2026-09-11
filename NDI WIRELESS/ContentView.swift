@@ -132,6 +132,14 @@ struct ContentView: View {
     /// App Store screenshots are landscape: this is a monitor, and a portrait frame of a
     /// 16:9 picture is mostly black. Asked for once the scene is connected, and only when
     /// the launch argument is there — a real user's rotation is their own business.
+    ///
+    /// Honoured on iPhone. **Not** on iPad, which refuses with `UISceneErrorDomain` 101,
+    /// "the current windowing mode does not allow for programmatic changes to interface
+    /// orientation": the app declares multiple-scene support, so iPadOS treats it as
+    /// fully resizable and keeps orientation under the user's control. iPad captures have
+    /// to rotate the simulated device instead, which is what XCUITest's
+    /// `XCUIDevice.orientation` does. Left in place because it is the right call on the
+    /// phone, where the same screenshots are needed.
     private func requestLandscapeForScreenshots() {
         #if canImport(UIKit)
         guard MonitorViewModel.isLaunchedForScreenshots else { return }
