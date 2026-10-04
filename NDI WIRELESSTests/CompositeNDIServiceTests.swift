@@ -71,6 +71,11 @@ private final class StubNDIService: NDIService {
     func reconnect(_ source: NDISource) {
         calls.append(.reconnect(source.id))
     }
+
+    // Not exercised here; present so the double conforms.
+    func audioLevels(for source: NDISource) -> AudioLevels? { nil }
+    func isPTZSupported(_ source: NDISource) -> Bool { false }
+    func sendPTZ(_ command: PTZCommand, to source: NDISource) {}
 }
 
 /// A main-actor box for what the merged stream last produced.

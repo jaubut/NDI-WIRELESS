@@ -131,9 +131,30 @@ struct SingleMonitorView: View {
                     ProxyBadge()
                 }
                 Spacer()
+                if viewModel.isAudioMeterActive, let id = sourceID {
+                    AudioMeterView(levels: { viewModel.audioLevels(for: id) })
+                }
             }
 
             Spacer()
+
+            // Only for a sender that advertises PTZ. It is a control, so it hides with
+            // the chrome, and hiding it stops any move in progress (`onDisappear`).
+            if viewModel.isChromeVisible, let id = sourceID, viewModel.ptzCapableSources.contains(id) {
+                HStack {
+                    Spacer()
+                    PTZControlView(
+                        setPanTilt: { viewModel.setPanTilt(pan: $0, tilt: $1, for: id) },
+                        setZoom: { viewModel.setZoomSpeed($0, for: id) },
+                        send: { viewModel.sendPTZ($0, to: id) },
+                        stop: { viewModel.stopPTZ(for: id) }
+                    )
+                    // A new primary source is a new camera. Never hand it the old one's
+                    // half-finished gesture.
+                    .id(id)
+                }
+                Spacer()
+            }
 
             HStack(alignment: .bottom) {
                 if viewModel.isChromeVisible, let id = sourceID {

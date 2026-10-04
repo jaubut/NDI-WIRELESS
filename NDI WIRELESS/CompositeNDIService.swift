@@ -132,6 +132,18 @@ final class CompositeNDIService: NDIService {
         service(for: source.id).reconnect(source)
     }
 
+    func audioLevels(for source: NDISource) -> AudioLevels? {
+        service(for: source.id).audioLevels(for: source)
+    }
+
+    func isPTZSupported(_ source: NDISource) -> Bool {
+        service(for: source.id).isPTZSupported(source)
+    }
+
+    func sendPTZ(_ command: PTZCommand, to source: NDISource) {
+        service(for: source.id).sendPTZ(command, to: source)
+    }
+
     // MARK: - Private
 
     private func service(for sourceID: String) -> NDIService {

@@ -40,6 +40,8 @@ final class MonitorViewModel {
     var isDiscovering = false
     var isChromeVisible = true
     var activeTools: Set<MonitorTool> = []
+    /// Selected sources whose sender advertises PTZ (1 Hz poll).
+    var ptzCapableSources: Set<String> = []
 
     // MARK: - Private
 
@@ -56,6 +58,9 @@ final class MonitorViewModel {
     private var statsTask: Task<Void, Never>?
     private var pathMonitorTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
+    /// Last continuous PTZ move sent per source, for dedupe. No view renders it.
+    @ObservationIgnored private var lastPanTilt: [String: PTZCommand] = [:]
+    @ObservationIgnored private var lastZoom: [String: PTZCommand] = [:]
 
     /// A feed with no new frame for this long is reported as reconnecting.
     static let starvedAfterMilliseconds: Double = 2000
@@ -228,6 +233,7 @@ final class MonitorViewModel {
 
     func stopReceiving(_ source: NDISource) {
         settleScreenshotSelection()
+        stopPTZIfMoved(source.id)
         selectedSources.removeAll { $0 == source.id }
         receiveTasks[source.id]?.cancel()
         receiveTasks.removeValue(forKey: source.id)
@@ -235,6 +241,9 @@ final class MonitorViewModel {
         stats.removeValue(forKey: source.id)
         connectionState.removeValue(forKey: source.id)
         histogramData.removeValue(forKey: source.id)
+        ptzCapableSources.remove(source.id)
+        lastPanTilt.removeValue(forKey: source.id)
+        lastZoom.removeValue(forKey: source.id)
 
         // Cancels the transport's loop and drops its bookkeeping; the loop destroys its
         // own C instances as it unwinds. Nothing here destroys anything.
@@ -303,6 +312,11 @@ final class MonitorViewModel {
     /// The readout is chrome and only runs when chrome is up; connection state is video
     /// status, so it is refreshed either way.
     private func pollStats() {
+        let capable = Set(selectedSources.filter { sourceID in
+            sourceIndex[sourceID].map { service.isPTZSupported($0) } ?? false
+        })
+        if capable != ptzCapableSources { ptzCapableSources = capable }
+
         for sourceID in selectedSources {
             guard let source = sourceIndex[sourceID] else { continue }
             let snapshot = service.stats(for: source)
@@ -343,6 +357,48 @@ final class MonitorViewModel {
             return .reconnecting(since: since)
         }
         return .reconnecting(since: now)
+    }
+
+    // MARK: - Audio
+
+    /// For the meter view, which pulls at its own rate. Never stored in observed state.
+    func audioLevels(for sourceID: String) -> AudioLevels? {
+        sourceIndex[sourceID].flatMap { service.audioLevels(for: $0) }
+    }
+
+    // MARK: - PTZ
+
+    /// Continuous pan and tilt. Send (0, 0) to stop.
+    func setPanTilt(pan: Float, tilt: Float, for sourceID: String) {
+        let command = PTZCommand.panTiltSpeed(pan: PTZCommand.quantized(pan), tilt: PTZCommand.quantized(tilt))
+        guard lastPanTilt[sourceID] != command else { return }
+        lastPanTilt[sourceID] = command
+        sendPTZ(command, to: sourceID)
+    }
+
+    /// Continuous zoom. Send 0 to stop.
+    func setZoomSpeed(_ speed: Float, for sourceID: String) {
+        let command = PTZCommand.zoomSpeed(PTZCommand.quantized(speed))
+        guard lastZoom[sourceID] != command else { return }
+        lastZoom[sourceID] = command
+        sendPTZ(command, to: sourceID)
+    }
+
+    /// Stop every continuous move. The control calls this whenever it goes away.
+    func stopPTZ(for sourceID: String) {
+        setPanTilt(pan: 0, tilt: 0, for: sourceID)
+        setZoomSpeed(0, for: sourceID)
+    }
+
+    /// A deselect must never leave a camera moving. Undriven sources get no PTZ traffic.
+    private func stopPTZIfMoved(_ sourceID: String) {
+        if lastPanTilt[sourceID] != nil || lastZoom[sourceID] != nil { stopPTZ(for: sourceID) }
+    }
+
+    /// One-shot commands (presets, AF). Continuous moves use the deduping setters.
+    func sendPTZ(_ command: PTZCommand, to sourceID: String) {
+        guard selectedSources.contains(sourceID), let source = sourceIndex[sourceID] else { return }
+        service.sendPTZ(command, to: source)
     }
 
     // MARK: - Network path
@@ -480,6 +536,10 @@ final class MonitorViewModel {
         activeTools.contains(.histogram)
     }
 
+    var isAudioMeterActive: Bool {
+        activeTools.contains(.audioMeters)
+    }
+
     /// Compute histogram for a given source's current frame on a background thread.
     func updateHistogram(for sourceID: String) {
         guard isHistogramActive, let frame = frames[sourceID] else {
@@ -507,6 +567,7 @@ final class MonitorViewModel {
         settleScreenshotSelection()
         // Cancel first, then stop — the same order as `stopReceiving(_:)`, so no stop
         // ever reaches the transport while a receive task is still writing frames.
+        selectedSources.forEach(stopPTZIfMoved)
         receiveTasks.values.forEach { $0.cancel() }
         receiveTasks.removeAll()
         // Resolved through the session index, not through discovery: a source that
@@ -519,6 +580,9 @@ final class MonitorViewModel {
         selectedSources.removeAll()
         frames.removeAll()
         histogramData.removeAll()
+        ptzCapableSources.removeAll()
+        lastPanTilt.removeAll()
+        lastZoom.removeAll()
         primarySourceID = nil
         stopStatsPolling()
         stopPathMonitoring()

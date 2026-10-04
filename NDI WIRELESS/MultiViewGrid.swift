@@ -62,6 +62,16 @@ struct MultiViewGrid: View {
             }
             .padding(4)
         }
+        .overlay(alignment: .topTrailing) {
+            if viewModel.isAudioMeterActive {
+                AudioMeterView(
+                    levels: { viewModel.audioLevels(for: source.id) },
+                    barHeight: 50,
+                    barWidth: 5
+                )
+                .padding(4)
+            }
+        }
         .overlay(alignment: .bottomLeading) {
             Text(source.name)
                 .font(.caption2)
