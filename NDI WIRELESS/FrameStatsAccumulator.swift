@@ -9,8 +9,8 @@
 //  it on the simulator.
 //
 //  Isolation is declared, not inferred: the capture loops are detached and are the only
-//  writers, the view model reads a snapshot at 1 Hz from the main actor, and the module
-//  builds under `-swift-version 5`, where a data-race mistake is only a warning.
+//  writers, the view model reads a snapshot at 1 Hz from the main actor. The module builds
+//  in the Swift 6 language mode, so a data-race mistake here is a compile error.
 //
 
 import Foundation
@@ -57,7 +57,7 @@ nonisolated final class FrameStatsAccumulator: Sendable {
     /// A gap longer than this multiple of the nominal frame interval counts as late.
     static let lateTolerance: Double = 1.5
 
-    private struct State {
+    private nonisolated struct State {
         var lastKey: Int64?
         var lastArrival: Double?
         var arrivals: [Double] = []

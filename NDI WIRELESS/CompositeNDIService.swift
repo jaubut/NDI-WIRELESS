@@ -152,7 +152,7 @@ final class CompositeNDIService: NDIService {
 /// `nonisolated` on the declaration, not left to inference: the module defaults to
 /// MainActor and the termination handler is not on it.
 private nonisolated final class DiscoverySession: @unchecked Sendable {
-    private struct State {
+    private nonisolated struct State {
         var tasks: [Task<Void, Never>] = []
         var isStopped = false
     }
