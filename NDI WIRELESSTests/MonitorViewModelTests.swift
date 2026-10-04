@@ -19,8 +19,14 @@ struct MonitorViewModelTests {
         NDISource(id: id, name: id.uppercased(), ipAddress: "192.168.1.1")
     }
 
-    private func makeViewModel() -> MonitorViewModel {
-        MonitorViewModel(service: MockNDIService())
+    /// A throwaway defaults suite, so a bandwidth set in one test (or on the host app)
+    /// never leaks into another.
+    private func freshStore() -> UserDefaults {
+        UserDefaults(suiteName: "MonitorViewModelTests-\(UUID().uuidString)")!
+    }
+
+    private func makeViewModel(store: UserDefaults? = nil) -> MonitorViewModel {
+        MonitorViewModel(service: MockNDIService(), bandwidthStore: store ?? freshStore())
     }
 
     /// Wait for a frame to land, polling the main actor rather than sleeping blind.
@@ -80,6 +86,15 @@ struct MonitorViewModelTests {
         #expect(viewModel.primarySourceID == viewModel.selectedSources.first)
 
         viewModel.stopAll()
+    }
+
+    @Test func bandwidthSurvivesARelaunch() {
+        let store = freshStore()
+        makeViewModel(store: store).setBandwidth(.lowest, for: "A")
+
+        let relaunched = makeViewModel(store: store)
+        #expect(relaunched.bandwidth["A"] == .lowest)
+        #expect(relaunched.bandwidth["B"] == nil)
     }
 
     @Test func switchingToProxyHalvesTheFrameWithoutEverBlankingIt() async {
