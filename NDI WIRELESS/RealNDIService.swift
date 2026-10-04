@@ -5,16 +5,14 @@
 //  Created by Jeremie Aubut on 2026-03-02.
 //
 //  SETUP INSTRUCTIONS:
-//  To enable real NDI support, you must configure the Xcode project:
+//  The project is already configured; run ci_scripts/ci_post_clone.sh once after
+//  cloning (Xcode Cloud runs it automatically). It puts the SDK in Vendor/NDI.
 //
-//  1. Add the NDI static library:
-//     - Go to Build Phases > Link Binary With Libraries
-//     - Add /Library/NDI SDK for Apple/lib/iOS/libndi_ios.a (for iOS)
-//       or /Library/NDI SDK for Apple/lib/macOS/libndi.dylib (for macOS)
+//  1. NDI static library (iOS device only):
+//     - OTHER_LDFLAGS[sdk=iphoneos*] = $(SRCROOT)/Vendor/NDI/lib/iOS/libndi_ios.a
 //
-//  2. Add Header Search Paths:
-//     - Go to Build Settings > Header Search Paths
-//     - Add: /Library/NDI SDK for Apple/include
+//  2. Header Search Paths:
+//     - $(SRCROOT)/Vendor/NDI/include
 //
 //  3. Set the Objective-C Bridging Header:
 //     - Go to Build Settings > Swift Compiler - General > Objective-C Bridging Header
