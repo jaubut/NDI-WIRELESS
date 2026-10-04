@@ -36,7 +36,7 @@ nonisolated final class NetworkPathMonitor: Sendable {
     /// does not sit in front of a frozen frame wondering.
     static let debounceSeconds: Double = 1.5
 
-    private struct State {
+    private nonisolated struct State {
         var generation: UInt64 = 0
         /// The path we consider ourselves to be on. The first one observed is the
         /// launch state, not a change, so it is recorded and not emitted.

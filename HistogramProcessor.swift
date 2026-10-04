@@ -9,7 +9,7 @@ import Accelerate
 import CoreGraphics
 
 /// Computes per-channel RGB histograms from CGImage frames using vImage.
-struct HistogramData {
+nonisolated struct HistogramData: Sendable {
     var red: [UInt] = Array(repeating: 0, count: 256)
     var green: [UInt] = Array(repeating: 0, count: 256)
     var blue: [UInt] = Array(repeating: 0, count: 256)

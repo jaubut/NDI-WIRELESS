@@ -76,7 +76,7 @@ private nonisolated final class ReceiverHandle: @unchecked Sendable {
     }
 
     /// Run `body` against the live receiver, or return nil once it has been destroyed.
-    func withRecv<T>(_ body: (NDIlib_recv_instance_t) -> T) -> T? {
+    func withRecv<T: Sendable>(_ body: (NDIlib_recv_instance_t) -> T) -> T? {
         isClosed.withLock { (closed: inout Bool) -> T? in
             closed ? nil : body(recv)
         }
