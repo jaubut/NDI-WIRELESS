@@ -38,6 +38,9 @@ final class MonitorViewModel {
     var layoutMode: LayoutMode = .multi
     var primarySourceID: String?
     var isDiscovering = false
+    /// The OS is refusing local network access, so an empty list means "can't look", not
+    /// "nothing there". Kept as last reported across discovery restarts to avoid flicker.
+    var isLocalNetworkDenied = false
     var isChromeVisible = true
     var activeTools: Set<MonitorTool> = []
     /// Selected sources whose sender advertises PTZ (1 Hz poll).
@@ -46,6 +49,10 @@ final class MonitorViewModel {
     // MARK: - Private
 
     let service: NDIService
+    /// Where per-source bandwidth survives a relaunch. Injected so tests never touch
+    /// the app's real defaults.
+    private let bandwidthStore: UserDefaults
+    static let bandwidthStoreKey = "bandwidthBySource"
     /// Owned here, not by a service: the transport stays transport, and the mock does
     /// not have to reimplement the recovery policy to be useful.
     private let pathMonitor: NetworkPathMonitor
@@ -64,6 +71,7 @@ final class MonitorViewModel {
     /// Stops the SDK refused (receiver mid-swap or closed), per axis. The 1 Hz poll retries.
     @ObservationIgnored var pendingPanTiltStops: Set<String> = []
     @ObservationIgnored var pendingZoomStops: Set<String> = []
+    private var localNetworkTask: Task<Void, Never>?
 
     /// A feed with no new frame for this long is reported as reconnecting.
     static let starvedAfterMilliseconds: Double = 2000
@@ -74,9 +82,17 @@ final class MonitorViewModel {
     var rebuildAfterSeconds: Double = 6
     var rediscoverAfterSeconds: Double = 20
 
-    init(service: NDIService, pathMonitor: NetworkPathMonitor = NetworkPathMonitor()) {
+    init(
+        service: NDIService,
+        pathMonitor: NetworkPathMonitor = NetworkPathMonitor(),
+        bandwidthStore: UserDefaults = .standard
+    ) {
         self.service = service
         self.pathMonitor = pathMonitor
+        self.bandwidthStore = bandwidthStore
+        // Unknown raw values (a mode renamed in a later build) are dropped, not crashed on.
+        let saved = bandwidthStore.dictionary(forKey: Self.bandwidthStoreKey) as? [String: String] ?? [:]
+        self.bandwidth = saved.compactMapValues(NDIBandwidthMode.init(rawValue:))
     }
 
     /// Ids whose receive task is still running and still writing `frames`.
@@ -91,6 +107,7 @@ final class MonitorViewModel {
 
     func startDiscovery() {
         startPathMonitoring()
+        startLocalNetworkWatch()
         guard !isDiscovering else { return }
         isDiscovering = true
         discoveryTask = Task { @MainActor [weak self] in
@@ -102,6 +119,22 @@ final class MonitorViewModel {
                 }
                 self.applyScreenshotModeIfNeeded()
             }
+        }
+    }
+
+    /// Idempotent for the same reason as `startPathMonitoring()`: recovery restarts
+    /// discovery and must not stack a second browser.
+    private func startLocalNetworkWatch() {
+        guard localNetworkTask == nil else { return }
+        localNetworkTask = Task { @MainActor [weak self] in
+            for await denied in LocalNetworkAccess.deniedUpdates() {
+                guard let self else { return }
+                self.isLocalNetworkDenied = denied
+            }
+            // Stream ended on its own (browser failed): free the slot so the next
+            // `startDiscovery()` recreates the watch. Retry is bounded by discovery restarts.
+            guard !Task.isCancelled, let self else { return }
+            self.localNetworkTask = nil
         }
     }
 
@@ -271,6 +304,7 @@ final class MonitorViewModel {
     func setBandwidth(_ mode: NDIBandwidthMode, for sourceID: String) {
         guard bandwidth[sourceID] != mode else { return }
         bandwidth[sourceID] = mode
+        bandwidthStore.set(bandwidth.mapValues(\.rawValue), forKey: Self.bandwidthStoreKey)
 
         guard selectedSources.contains(sourceID), let source = sourceIndex[sourceID] else { return }
         resubscribe(source: source, bandwidth: mode)
@@ -561,6 +595,8 @@ final class MonitorViewModel {
         primarySourceID = nil
         stopStatsPolling()
         stopPathMonitoring()
+        localNetworkTask?.cancel()
+        localNetworkTask = nil
         stopDiscovery()
         service.stopAll()
     }
