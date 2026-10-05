@@ -37,7 +37,7 @@
 		F375C4102F5663B200A55EE7 /* NDI WIRELESS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "NDI WIRELESS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F375C41F2F5663B300A55EE7 /* NDI WIRELESSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NDI WIRELESSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F375C4292F5663B300A55EE7 /* NDI WIRELESSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NDI WIRELESSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F3D5167E2F5675A80005168B /* libndi_ios.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libndi_ios.a; path = "../../../../Library/NDI SDK for Apple/lib/iOS/libndi_ios.a"; sourceTree = "<group>"; };
+		F3D5167E2F5675A80005168B /* libndi_ios.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libndi_ios.a; path = Vendor/NDI/lib/iOS/libndi_ios.a; sourceTree = SOURCE_ROOT; };
 		F3D516822F567BD90005168B /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		F3D516842F567BE70005168B /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/System/Library/Frameworks/VideoToolbox.framework; sourceTree = DEVELOPER_DIR; };
 		F3D516862F5681E90005168B /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk/usr/lib/libc++.tbd"; sourceTree = DEVELOPER_DIR; };
@@ -436,7 +436,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "\"/Library/NDI SDK for Apple/include\"";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/Vendor/NDI/include\"";
 				INFOPLIST_FILE = "NDI-WIRELESS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "TLS Viewer";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -457,13 +457,12 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"/Library/NDI SDK for Apple/lib/iOS\"",
-					"\"$(LOCAL_LIBRARY_DIR)/NDI\\ SDK\\ for\\ Apple/include\"",
+					"\"$(SRCROOT)/Vendor/NDI/lib/iOS\"",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = "$(inherited)";
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = "\"/Library/NDI SDK for Apple/lib/iOS/libndi_ios.a\"";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = "\"$(SRCROOT)/Vendor/NDI/lib/iOS/libndi_ios.a\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "TechLabStudio.NDI-WIRELESS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -477,7 +476,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NDI WIRELESS/NDI-WIRELESS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -495,7 +494,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "\"/Library/NDI SDK for Apple/include\"";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/Vendor/NDI/include\"";
 				INFOPLIST_FILE = "NDI-WIRELESS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "TLS Viewer";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -516,13 +515,12 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"/Library/NDI SDK for Apple/lib/iOS\"",
-					"\"$(LOCAL_LIBRARY_DIR)/NDI\\ SDK\\ for\\ Apple/include\"",
+					"\"$(SRCROOT)/Vendor/NDI/lib/iOS\"",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = "$(inherited)";
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = "\"/Library/NDI SDK for Apple/lib/iOS/libndi_ios.a\"";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = "\"$(SRCROOT)/Vendor/NDI/lib/iOS/libndi_ios.a\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "TechLabStudio.NDI-WIRELESS";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -536,7 +534,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NDI WIRELESS/NDI-WIRELESS-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -560,7 +558,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NDI WIRELESS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NDI WIRELESS";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -585,7 +583,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NDI WIRELESS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NDI WIRELESS";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -609,7 +607,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_TARGET_NAME = "NDI WIRELESS";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -633,7 +631,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_TARGET_NAME = "NDI WIRELESS";
 				XROS_DEPLOYMENT_TARGET = 26.2;

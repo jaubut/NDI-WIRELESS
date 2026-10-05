@@ -21,7 +21,7 @@ import Synchronization
 /// The accumulator is swappable: `reconnect` starts a fresh measurement without stopping
 /// the loop, which is what a re-point does on the real transport.
 private nonisolated final class MockReceiver: Sendable {
-    private struct State {
+    private nonisolated struct State {
         var accumulator = FrameStatsAccumulator()
         var isGlitching = false
         /// The capture loop, so a stop path can end it. `RealNDIService` cancels its loop
