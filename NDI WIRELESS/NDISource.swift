@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct NDISource: Identifiable, Hashable {
+nonisolated struct NDISource: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let ipAddress: String
