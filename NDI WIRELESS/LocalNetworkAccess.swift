@@ -24,14 +24,19 @@ nonisolated enum LocalNetworkAccess {
     ///
     /// Browses the same service NDI advertises (`_ndi._tcp`, already declared in
     /// `NSBonjourServices`), so this asks for nothing the app does not already ask for.
-    /// The stream cancels its browser on termination.
+    /// The stream finishes if the browser fails and cancels its browser on termination.
     static func deniedUpdates() -> AsyncStream<Bool> {
         AsyncStream { continuation in
             let browser = NWBrowser(for: .bonjour(type: "_ndi._tcp", domain: nil), using: .tcp)
             browser.stateUpdateHandler = { state in
                 switch state {
-                case .waiting(let error), .failed(let error):
+                case .waiting(let error):
                     continuation.yield(isPolicyDenied(error))
+                case .failed(let error):
+                    // Fatal for this browser: report, then end the stream so the caller
+                    // can start a fresh one instead of holding a dead watch.
+                    continuation.yield(isPolicyDenied(error))
+                    continuation.finish()
                 case .ready:
                     continuation.yield(false)
                 default:

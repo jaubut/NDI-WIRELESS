@@ -111,6 +111,10 @@ final class MonitorViewModel {
                 guard let self else { return }
                 self.isLocalNetworkDenied = denied
             }
+            // Stream ended on its own (browser failed): free the slot so the next
+            // `startDiscovery()` recreates the watch. Retry is bounded by discovery restarts.
+            guard !Task.isCancelled, let self else { return }
+            self.localNetworkTask = nil
         }
     }
 
