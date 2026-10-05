@@ -2,6 +2,39 @@
 
 ## Change Plans
 
+### Change Plan — audio meters + PTZ (2026-10-04)
+**Status:** PR open, Swift not yet compiled. Builder had no toolchain, so the Mac build and iPad pass are the gate.
+**Request:** follow-up from onset-hardening ("audio/tally/PTZ surface"). Cut down to **audio meters and PTZ controls**. **Tally is out:** it is filed separately and waits on Mac-side NDI metadata (see Follow-ups).
+
+**What already existed in the viewer:** nothing for audio or PTZ. The receiver (`recv_create_v3`, highest/lowest bandwidth) already *receives* audio, because neither mode is `audio_only`/`metadata_only`. The capture loop only ever called `framesync_capture_video`, so the audio was discarded. No `NDIlib_recv_ptz_*` call existed. The patterns reused here: pull, never push, for anything at frame rate (`stats(for:)`); `ReceiverHandle.withRecv` for any call against a live recv (same lock as `close()`); `MonitorTool` + `ToolboxView` for overlay toggles; unscaled overlay layer in `SingleMonitorView`; the grid tile overlays.
+
+**Spec**
+- Audio meters are a fourth `MonitorTool` (`.audioMeters`, "Audio"), toggled from the existing toolbox. When it is on, the single view shows a vertical peak meter per channel (up to 8) top-right, in the unscaled overlay. Each grid tile shows a compact one top-right.
+- Levels are measured in the transport (`AudioLevelMeter`: pure Swift, `nonisolated`+`Sendable`, `Mutex`). Real: `NDIlib_framesync_capture_audio` (native rate and channel count, 1600 samples per 33 ms tick), then planar float peaks, then `framesync_free_audio`, in the same detached loop. Mock: a synthetic stereo wobble that goes silent during the scripted glitch.
+- Levels are pulled by `AudioMeterView` on a 15 Hz `TimelineView` through `MonitorViewModel.audioLevels(for:)`. They are never written into `@Observable` state.
+- Scale: -60...0 dBFS, green / yellow above -18 / red above -6. Release 12 dB/s. A clip lamp holds 2 s after a channel reaches 0 dBFS. dBFS = 20·log10(peak) − **20 dB headroom** (NDI convention: float 1.0 = +4 dBu). `AudioLevelMeter.headroomDB` is the calibration knob.
+- PTZ: `NDIService.isPTZSupported(_:)` (`NDIlib_recv_ptz_is_supported`) is polled by the existing 1 Hz stats task into `MonitorViewModel.ptzCapableSources`. In the single view, with the chrome up, a `PTZControlView` appears only for capable sources. It has a pan/tilt joystick (continuous speed), hold-to-zoom wide/tele, AF, and presets 1–4 (tap to recall, context menu to store).
+- `NDIService.sendPTZ(_:to:)` takes one `PTZCommand` enum. Real maps it to `ptz_pan_tilt_speed / zoom_speed / recall_preset / store_preset / auto_focus` under `withRecv`, with values clamped (speeds −1...1, presets 0...99). Continuous moves are quantised to 0.1 and deduped in the view model, so a drag sends a command only when the value changes.
+- **Never leave a camera moving.** Motion comes from `@GestureState`, which resets on end *and* cancel. `onDisappear` sends stop, and so does a change of primary source (`.id`). Deselect and `stopAll` send stop to any source that was driven.
+
+**Acceptance criteria**
+1. Toolbox shows an "Audio" toggle. On: meters appear in single view and on every grid tile. Off: they are gone and nothing is polling.
+2. Simulator (Mock): meters move on both channels and drop to the floor during the 20 s glitch. Unit tests `AudioAndPTZTests` pass (stride-aware peaks, headroom/clamp, release, clip hold/expiry, channel-count change, PTZ clamp, joystick sign, dedupe, unselected sources get nothing, poll finds PTZ sources, mock meters move).
+3. Simulator: Camera A shows the PTZ panel with chrome up, and Camera B/C/D and the demo pattern don't. Hiding the chrome hides it.
+4. iPad + Mac sender: a −20 dBFS tone on the Mac reads −20 on the meter (±1 dB). If it reads −40, the sender is passing Core Audio floats unscaled, so set `headroomDB = 0`. A 0 dBFS tone lights the clip lamp.
+5. iPad + a real NDI PTZ camera (or NDI Tools with a PTZ source): the panel appears within ~1 s of connecting. Dragging right pans right, dragging up tilts up, and releasing stops. Zoom in/out hold and release work. Store preset 1, move, recall 1: the camera returns. The panel never appears for a non-PTZ sender.
+6. Mid-drag, hide chrome / switch source / deselect: the camera stops each time.
+7. No regression: fps/dropped counters unchanged with audio metering on (the audio pull is in the same loop, and its cost per tick is one memcpy-free scan).
+
+**Known ceilings (deliberate)**
+- The frame sync returns silence when a sender has no audio, so "no audio track" reads as a meter at the floor. It is not shown as an absent meter.
+- Picture zoom/pan gestures sit on the picture layer only (`SingleMonitorView.pictureLayer`), so the PTZ joystick no longer pans a zoomed picture. Check on the iPad that pinch/drag on empty overlay space still reaches the picture.
+- Peak only: no RMS/LUFS, no grid PTZ, no preset names. Add these when someone asks.
+- PTZ logic split into `MonitorViewModel+PTZ.swift` (600-line cap). `sendPTZ` returns the SDK's Bool; a continuous move is recorded for dedupe only once delivered, and an undelivered stop is retried by the 1 Hz poll until it lands.
+
+**Follow-ups**
+- **Tally (separate task, blocked on the Mac sender).** It needs the Mac side to publish program/preview state. The viewer would *send* `NDIlib_recv_set_tally`, or *read* tally metadata via `NDIlib_framesync`/`recv_capture_v3` metadata frames, depending on which direction the Mac implements. Scope it once the Mac metadata exists.
+
 ### Change Plan — onset-hardening (2026-09-11, rev 3 — rev 2 after analyst reconciliation, rev 3 amends the PR-0 Files rows after drift check)
 **✅ shipped** — PR-0 #2, PR-A #3, PR-B #4 (all 2026-09-10, each drift-checked CLEAN). Manual iPad pass (Verify 4-9) is Jeremie's, on the merged build.
 **Request:** (1) Receiver bandwidth mode toggle (highest/lowest) + live stats overlay (fps, ms since last frame, dropped/late) produced by the service layer; (2) NWPathMonitor-driven resilience so discovery re-runs and receivers rebuild on a Wi-Fi path change without the user re-picking sources.

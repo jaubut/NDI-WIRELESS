@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11",
+  "generatedAt": "2026-10-04",
   "repo": "ndi-wireless",
   "intent": "TLS Viewer (NDI Wireless) — iOS/iPadOS NDI monitor for wireless on-set video: discovers NDI sources on the network, shows a single monitor or a multi-view grid, with per-frame monitor tools (histogram, false colour); a mock NDI service stands in on the simulator. Correctness bar: frames render at source rate without leaking buffers, tools are pure per-frame processors, discovery survives network changes.",
   "targets": [
@@ -74,8 +74,64 @@
           ]
         },
         {
+          "path": "NDI WIRELESS/AudioLevelMeter.swift",
+          "lines": 111,
+          "kind": "lib",
+          "exports": [
+            "AudioLevels",
+            "AudioLevelMeter",
+            "peaks()",
+            "dbfs()",
+            "record()",
+            "snapshot()",
+            "AudioLevels.channels",
+            "AudioLevels.isClipped",
+            "AudioLevelMeter.floorDB",
+            "AudioLevelMeter.releaseDBPerSecond",
+            "AudioLevelMeter.clipHoldSeconds",
+            "AudioLevelMeter.headroomDB",
+            "State.levels",
+            "State.updatedAt",
+            "State.clippedAt"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "Foundation",
+            "Synchronization"
+          ]
+        },
+        {
+          "path": "NDI WIRELESS/AudioMeterView.swift",
+          "lines": 92,
+          "kind": "view",
+          "exports": [
+            "AudioMeterView",
+            "AudioMeterView.levels",
+            "AudioMeterView.barHeight",
+            "AudioMeterView.barWidth"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "SwiftUI"
+          ]
+        },
+        {
           "path": "NDI WIRELESS/CompositeNDIService.swift",
-          "lines": 127,
+          "lines": 214,
           "kind": "lib",
           "exports": [
             "CompositeNDIService",
@@ -86,8 +142,15 @@
             "stopAll()",
             "stats()",
             "reconnect()",
+            "audioLevels()",
+            "isPTZSupported()",
+            "sendPTZ()",
+            "attach()",
+            "stop()",
             "CompositeNDIService.demoIDPrefix",
             "CompositeNDIService.demoSource",
+            "State.tasks",
+            "State.isStopped",
             "MergedSources.real",
             "MergedSources.demo"
           ],
@@ -101,12 +164,13 @@
           "sheets": 0,
           "externals": [
             "CoreGraphics",
-            "Foundation"
+            "Foundation",
+            "Synchronization"
           ]
         },
         {
           "path": "NDI WIRELESS/ContentView.swift",
-          "lines": 141,
+          "lines": 164,
           "kind": "view",
           "exports": [
             "ContentView",
@@ -191,9 +255,11 @@
         },
         {
           "path": "NDI WIRELESS/MockNDIService.swift",
-          "lines": 264,
+          "lines": 329,
           "kind": "lib",
           "exports": [
+            "attach()",
+            "cancel()",
             "setGlitching()",
             "reconnect()",
             "snapshot()",
@@ -201,11 +267,17 @@
             "discoverSources()",
             "startReceiving()",
             "stats()",
+            "audioLevels()",
+            "isPTZSupported()",
+            "sendPTZ()",
             "stopReceiving()",
             "stopAll()",
             "State.accumulator",
             "State.isGlitching",
-            "MockReceiver.accumulator"
+            "State.task",
+            "MockReceiver.audio",
+            "MockReceiver.accumulator",
+            "MockNDIService.sentPTZCommands"
           ],
           "state": [],
           "emits": [],
@@ -224,7 +296,7 @@
         },
         {
           "path": "NDI WIRELESS/MonitorTool.swift",
-          "lines": 30,
+          "lines": 33,
           "kind": "lib",
           "exports": [
             "MonitorTool",
@@ -239,7 +311,8 @@
           "imports": [],
           "listeners": [
             ".falseColor",
-            ".histogram"
+            ".histogram",
+            ".audioMeters"
           ],
           "sheets": 0,
           "externals": [
@@ -248,18 +321,24 @@
         },
         {
           "path": "NDI WIRELESS/MonitorViewModel.swift",
-          "lines": 474,
+          "lines": 593,
           "kind": "lib",
           "exports": [
             "LayoutMode",
             "MonitorViewModel",
             "startDiscovery()",
             "stopDiscovery()",
+            "screenshotSelection()",
             "toggleSource()",
             "startReceiving()",
             "stopReceiving()",
             "setBandwidth()",
             "connectionState()",
+            "audioLevels()",
+            "setPanTilt()",
+            "setZoomSpeed()",
+            "stopPTZ()",
+            "sendPTZ()",
             "handlePathChange()",
             "toggleTool()",
             "updateHistogram()",
@@ -277,6 +356,7 @@
             "MonitorViewModel.isDiscovering",
             "MonitorViewModel.isChromeVisible",
             "MonitorViewModel.activeTools",
+            "MonitorViewModel.ptzCapableSources",
             "MonitorViewModel.falseColorProcessor",
             "MonitorViewModel.histogramProcessor",
             "MonitorViewModel.histogramData",
@@ -286,8 +366,11 @@
             "MonitorViewModel.receivingSourceIDs",
             "MonitorViewModel.screenshotModeArgument",
             "MonitorViewModel.screenshotGridArgument",
+            "MonitorViewModel.isLaunchedForScreenshots",
+            "MonitorViewModel.screenshotAllowsNonDemoFallback",
             "MonitorViewModel.isFalseColorActive",
-            "MonitorViewModel.isHistogramActive"
+            "MonitorViewModel.isHistogramActive",
+            "MonitorViewModel.isAudioMeterActive"
           ],
           "state": [],
           "emits": [],
@@ -307,7 +390,7 @@
         },
         {
           "path": "NDI WIRELESS/MultiViewGrid.swift",
-          "lines": 111,
+          "lines": 121,
           "kind": "view",
           "exports": [
             "MultiViewGrid",
@@ -327,11 +410,13 @@
         },
         {
           "path": "NDI WIRELESS/NDIService.swift",
-          "lines": 71,
+          "lines": 122,
           "kind": "lib",
           "exports": [
             "NDIBandwidthMode",
             "SourceConnectionState",
+            "PTZCommand",
+            "quantized()",
             "NDIService",
             "discoverSources()",
             "startReceiving()",
@@ -339,9 +424,15 @@
             "stopAll()",
             "stats()",
             "reconnect()",
+            "audioLevels()",
+            "isPTZSupported()",
+            "sendPTZ()",
             "NDIBandwidthMode.label",
             "NDIBandwidthMode.isProxy",
-            "SourceConnectionState.isLive"
+            "SourceConnectionState.isLive",
+            "PTZCommand.presetRange",
+            "PTZCommand.speedStep",
+            "PTZCommand.clamped"
           ],
           "state": [],
           "emits": [],
@@ -351,7 +442,12 @@
           "imports": [],
           "listeners": [
             ".highest",
-            ".lowest"
+            ".lowest",
+            ".panTiltSpeed",
+            ".zoomSpeed",
+            ".recallPreset",
+            ".storePreset",
+            ".autoFocus"
           ],
           "sheets": 0,
           "externals": [
@@ -382,7 +478,7 @@
         },
         {
           "path": "NDI WIRELESS/NDI_WIRELESSApp.swift",
-          "lines": 27,
+          "lines": 44,
           "kind": "lib",
           "exports": [
             "NDI_WIRELESSApp"
@@ -396,6 +492,7 @@
           "listeners": [],
           "sheets": 0,
           "externals": [
+            "Foundation",
             "SwiftUI"
           ]
         },
@@ -430,8 +527,32 @@
           ]
         },
         {
+          "path": "NDI WIRELESS/PTZControlView.swift",
+          "lines": 150,
+          "kind": "view",
+          "exports": [
+            "PTZControlView",
+            "speeds()",
+            "PTZControlView.setPanTilt",
+            "PTZControlView.setZoom",
+            "PTZControlView.send",
+            "PTZControlView.stop"
+          ],
+          "state": [],
+          "emits": [],
+          "consumes": [],
+          "endpoints": [],
+          "apiCalls": [],
+          "imports": [],
+          "listeners": [],
+          "sheets": 0,
+          "externals": [
+            "SwiftUI"
+          ]
+        },
+        {
           "path": "NDI WIRELESS/RealNDIService.swift",
-          "lines": 407,
+          "lines": 468,
           "kind": "lib",
           "exports": [
             "close()",
@@ -443,7 +564,11 @@
             "stopAll()",
             "reconnect()",
             "stats()",
+            "audioLevels()",
+            "isPTZSupported()",
+            "sendPTZ()",
             "ReceiverHandle.stats",
+            "ReceiverHandle.audio",
             "ReceiverHandle.framesync",
             "ReceiverHandle.task"
           ],
@@ -453,7 +578,13 @@
           "endpoints": [],
           "apiCalls": [],
           "imports": [],
-          "listeners": [],
+          "listeners": [
+            ".panTiltSpeed",
+            ".zoomSpeed",
+            ".recallPreset",
+            ".storePreset",
+            ".autoFocus"
+          ],
           "sheets": 0,
           "externals": [
             "CoreGraphics",
@@ -463,7 +594,7 @@
         },
         {
           "path": "NDI WIRELESS/SingleMonitorView.swift",
-          "lines": 156,
+          "lines": 177,
           "kind": "view",
           "exports": [
             "SingleMonitorView",
@@ -595,12 +726,58 @@
             "HistogramView.swift"
           ]
         },
+        "FrameStatsAccumulator": {
+          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/AudioLevelMeter.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "AudioLevels": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/AudioMeterView.swift",
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "AudioLevels.channels": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/AudioMeterView.swift"
+          ]
+        },
+        "AudioLevels.isClipped": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/AudioMeterView.swift"
+          ]
+        },
+        "AudioLevelMeter": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/AudioMeterView.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
+        "AudioLevelMeter.floorDB": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/AudioMeterView.swift"
+          ]
+        },
         "NDIService": {
           "module": "NDI WIRELESS/NDIService.swift",
           "callers": [
             "NDI WIRELESS/CompositeNDIService.swift",
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/NDI_WIRELESSApp.swift",
             "NDI WIRELESS/RealNDIService.swift"
           ]
         },
@@ -615,15 +792,6 @@
             "NDI WIRELESS/RealNDIService.swift",
             "NDI WIRELESS/SingleMonitorView.swift",
             "NDI WIRELESS/SourceDiscoveryView.swift"
-          ]
-        },
-        "cancel": {
-          "module": "NDI WIRELESS/RealNDIService.swift",
-          "callers": [
-            "NDI WIRELESS/CompositeNDIService.swift",
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/MonitorViewModel.swift",
-            "NDI WIRELESS/NetworkPathMonitor.swift"
           ]
         },
         "NDIBandwidthMode": {
@@ -647,6 +815,15 @@
             "NDI WIRELESS/NDIService.swift",
             "NDI WIRELESS/RealNDIService.swift",
             "NDI WIRELESS/StatsOverlayView.swift"
+          ]
+        },
+        "PTZCommand": {
+          "module": "NDI WIRELESS/NDIService.swift",
+          "callers": [
+            "NDI WIRELESS/CompositeNDIService.swift",
+            "NDI WIRELESS/MockNDIService.swift",
+            "NDI WIRELESS/MonitorViewModel.swift",
+            "NDI WIRELESS/RealNDIService.swift"
           ]
         },
         "MonitorViewModel": {
@@ -724,18 +901,17 @@
             "NDI WIRELESS/ContentView.swift"
           ]
         },
+        "MonitorViewModel.isLaunchedForScreenshots": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/ContentView.swift"
+          ]
+        },
         "MockNDIService": {
           "module": "NDI WIRELESS/MockNDIService.swift",
           "callers": [
             "NDI WIRELESS/ContentView.swift",
             "NDI WIRELESS/NDI_WIRELESSApp.swift"
-          ]
-        },
-        "FrameStatsAccumulator": {
-          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
-          "callers": [
-            "NDI WIRELESS/MockNDIService.swift",
-            "NDI WIRELESS/RealNDIService.swift"
           ]
         },
         "withTransportCounters": {
@@ -759,8 +935,8 @@
             "NDI WIRELESS/StatsOverlayView.swift"
           ]
         },
-        "record": {
-          "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+        "PTZCommand.clamped": {
+          "module": "NDI WIRELESS/NDIService.swift",
           "callers": [
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/RealNDIService.swift"
@@ -818,6 +994,12 @@
         },
         "FrameStats.connections": {
           "module": "NDI WIRELESS/FrameStatsAccumulator.swift",
+          "callers": [
+            "NDI WIRELESS/MonitorViewModel.swift"
+          ]
+        },
+        "quantized": {
+          "module": "NDI WIRELESS/NDIService.swift",
           "callers": [
             "NDI WIRELESS/MonitorViewModel.swift"
           ]
@@ -917,6 +1099,20 @@
             "NDI WIRELESS/SingleMonitorView.swift"
           ]
         },
+        "MonitorViewModel.isAudioMeterActive": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "AudioMeterView": {
+          "module": "NDI WIRELESS/AudioMeterView.swift",
+          "callers": [
+            "NDI WIRELESS/MultiViewGrid.swift",
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
         "HistogramView": {
           "module": "HistogramView.swift",
           "callers": [
@@ -956,6 +1152,30 @@
             "NDI WIRELESS/NDI_WIRELESSApp.swift"
           ]
         },
+        "MonitorViewModel.screenshotModeArgument": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "MonitorViewModel.screenshotGridArgument": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/NDI_WIRELESSApp.swift"
+          ]
+        },
+        "stop": {
+          "module": "NDI WIRELESS/CompositeNDIService.swift",
+          "callers": [
+            "NDI WIRELESS/PTZControlView.swift"
+          ]
+        },
+        "peaks": {
+          "module": "NDI WIRELESS/AudioLevelMeter.swift",
+          "callers": [
+            "NDI WIRELESS/RealNDIService.swift"
+          ]
+        },
         "MonitorViewModel.primarySourceID": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
@@ -963,6 +1183,42 @@
           ]
         },
         "MonitorViewModel.isHistogramActive": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "MonitorViewModel.ptzCapableSources": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "PTZControlView": {
+          "module": "NDI WIRELESS/PTZControlView.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "setPanTilt": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "PTZControlView.setPanTilt": {
+          "module": "NDI WIRELESS/PTZControlView.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "setZoomSpeed": {
+          "module": "NDI WIRELESS/MonitorViewModel.swift",
+          "callers": [
+            "NDI WIRELESS/SingleMonitorView.swift"
+          ]
+        },
+        "stopPTZ": {
           "module": "NDI WIRELESS/MonitorViewModel.swift",
           "callers": [
             "NDI WIRELESS/SingleMonitorView.swift"
@@ -1065,6 +1321,7 @@
         "Foundation": {
           "version": null,
           "modules": [
+            "NDI WIRELESS/AudioLevelMeter.swift",
             "NDI WIRELESS/CompositeNDIService.swift",
             "NDI WIRELESS/FrameStatsAccumulator.swift",
             "NDI WIRELESS/MockNDIService.swift",
@@ -1072,6 +1329,7 @@
             "NDI WIRELESS/MonitorViewModel.swift",
             "NDI WIRELESS/NDIService.swift",
             "NDI WIRELESS/NDISource.swift",
+            "NDI WIRELESS/NDI_WIRELESSApp.swift",
             "NDI WIRELESS/NetworkPathMonitor.swift",
             "NDI WIRELESS/RealNDIService.swift"
           ]
@@ -1093,9 +1351,11 @@
           "modules": [
             "HistogramView.swift",
             "NDI WIRELESS/AboutView.swift",
+            "NDI WIRELESS/AudioMeterView.swift",
             "NDI WIRELESS/ContentView.swift",
             "NDI WIRELESS/MultiViewGrid.swift",
             "NDI WIRELESS/NDI_WIRELESSApp.swift",
+            "NDI WIRELESS/PTZControlView.swift",
             "NDI WIRELESS/SingleMonitorView.swift",
             "NDI WIRELESS/SourceDiscoveryView.swift",
             "NDI WIRELESS/StatsOverlayView.swift",
@@ -1106,6 +1366,8 @@
         "Synchronization": {
           "version": null,
           "modules": [
+            "NDI WIRELESS/AudioLevelMeter.swift",
+            "NDI WIRELESS/CompositeNDIService.swift",
             "NDI WIRELESS/FrameStatsAccumulator.swift",
             "NDI WIRELESS/MockNDIService.swift",
             "NDI WIRELESS/NetworkPathMonitor.swift",

@@ -43,10 +43,12 @@ final class MonitorViewModel {
     var isLocalNetworkDenied = false
     var isChromeVisible = true
     var activeTools: Set<MonitorTool> = []
+    /// Selected sources whose sender advertises PTZ (1 Hz poll).
+    var ptzCapableSources: Set<String> = []
 
     // MARK: - Private
 
-    private let service: NDIService
+    let service: NDIService
     /// Where per-source bandwidth survives a relaunch. Injected so tests never touch
     /// the app's real defaults.
     private let bandwidthStore: UserDefaults
@@ -63,6 +65,12 @@ final class MonitorViewModel {
     private var statsTask: Task<Void, Never>?
     private var pathMonitorTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
+    /// Last continuous PTZ move sent per source, for dedupe. No view renders it.
+    @ObservationIgnored var lastPanTilt: [String: PTZCommand] = [:]
+    @ObservationIgnored var lastZoom: [String: PTZCommand] = [:]
+    /// Stops the SDK refused (receiver mid-swap or closed), per axis. The 1 Hz poll retries.
+    @ObservationIgnored var pendingPanTiltStops: Set<String> = []
+    @ObservationIgnored var pendingZoomStops: Set<String> = []
     private var localNetworkTask: Task<Void, Never>?
 
     /// A feed with no new frame for this long is reported as reconnecting.
@@ -261,6 +269,7 @@ final class MonitorViewModel {
 
     func stopReceiving(_ source: NDISource) {
         settleScreenshotSelection()
+        stopPTZIfMoved(source.id)
         selectedSources.removeAll { $0 == source.id }
         receiveTasks[source.id]?.cancel()
         receiveTasks.removeValue(forKey: source.id)
@@ -268,6 +277,11 @@ final class MonitorViewModel {
         stats.removeValue(forKey: source.id)
         connectionState.removeValue(forKey: source.id)
         histogramData.removeValue(forKey: source.id)
+        ptzCapableSources.remove(source.id)
+        lastPanTilt.removeValue(forKey: source.id)
+        lastZoom.removeValue(forKey: source.id)
+        pendingPanTiltStops.remove(source.id)
+        pendingZoomStops.remove(source.id)
 
         // Cancels the transport's loop and drops its bookkeeping; the loop destroys its
         // own C instances as it unwinds. Nothing here destroys anything.
@@ -337,6 +351,14 @@ final class MonitorViewModel {
     /// The readout is chrome and only runs when chrome is up; connection state is video
     /// status, so it is refreshed either way.
     private func pollStats() {
+        let capable = Set(selectedSources.filter { sourceID in
+            sourceIndex[sourceID].map { service.isPTZSupported($0) } ?? false
+        })
+        if capable != ptzCapableSources { ptzCapableSources = capable }
+        // Copied first: each retry mutates the set it came from.
+        for id in Array(pendingPanTiltStops) { setPanTilt(pan: 0, tilt: 0, for: id) }
+        for id in Array(pendingZoomStops) { setZoomSpeed(0, for: id) }
+
         for sourceID in selectedSources {
             guard let source = sourceIndex[sourceID] else { continue }
             let snapshot = service.stats(for: source)
@@ -377,6 +399,13 @@ final class MonitorViewModel {
             return .reconnecting(since: since)
         }
         return .reconnecting(since: now)
+    }
+
+    // MARK: - Audio
+
+    /// For the meter view, which pulls at its own rate. Never stored in observed state.
+    func audioLevels(for sourceID: String) -> AudioLevels? {
+        sourceIndex[sourceID].flatMap { service.audioLevels(for: $0) }
     }
 
     // MARK: - Network path
@@ -514,6 +543,10 @@ final class MonitorViewModel {
         activeTools.contains(.histogram)
     }
 
+    var isAudioMeterActive: Bool {
+        activeTools.contains(.audioMeters)
+    }
+
     /// Compute histogram for a given source's current frame on a background thread.
     func updateHistogram(for sourceID: String) {
         guard isHistogramActive, let frame = frames[sourceID] else {
@@ -541,6 +574,7 @@ final class MonitorViewModel {
         settleScreenshotSelection()
         // Cancel first, then stop — the same order as `stopReceiving(_:)`, so no stop
         // ever reaches the transport while a receive task is still writing frames.
+        selectedSources.forEach(stopPTZIfMoved)
         receiveTasks.values.forEach { $0.cancel() }
         receiveTasks.removeAll()
         // Resolved through the session index, not through discovery: a source that
@@ -553,6 +587,11 @@ final class MonitorViewModel {
         selectedSources.removeAll()
         frames.removeAll()
         histogramData.removeAll()
+        ptzCapableSources.removeAll()
+        lastPanTilt.removeAll()
+        lastZoom.removeAll()
+        pendingPanTiltStops.removeAll()
+        pendingZoomStops.removeAll()
         primarySourceID = nil
         stopStatsPolling()
         stopPathMonitoring()

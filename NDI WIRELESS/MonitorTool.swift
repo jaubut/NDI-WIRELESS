@@ -10,6 +10,7 @@ import Foundation
 enum MonitorTool: String, CaseIterable, Identifiable, Hashable {
     case falseColor
     case histogram
+    case audioMeters
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ enum MonitorTool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .falseColor: return "False Color"
         case .histogram:  return "Histogram"
+        case .audioMeters: return "Audio"
         }
     }
 
@@ -24,6 +26,7 @@ enum MonitorTool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .falseColor: return "paintpalette"
         case .histogram:  return "chart.bar"
+        case .audioMeters: return "waveform"
         }
     }
 }

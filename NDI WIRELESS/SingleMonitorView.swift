@@ -50,6 +50,33 @@ struct SingleMonitorView: View {
 
     var body: some View {
         ZStack {
+            pictureLayer
+            overlayLayer
+        }
+        .navigationTitle(source?.name ?? "Monitor")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .onChange(of: viewModel.frames[viewModel.primarySourceID ?? ""]) {
+            if let id = viewModel.primarySourceID {
+                viewModel.updateHistogram(for: id)
+            }
+        }
+        .onChange(of: viewModel.isHistogramActive) {
+            if let id = viewModel.primarySourceID {
+                if viewModel.isHistogramActive {
+                    viewModel.updateHistogram(for: id)
+                } else {
+                    viewModel.histogramData.removeValue(forKey: id)
+                }
+            }
+        }
+    }
+
+    /// Zoom and pan live on the picture only. On the outer stack they also caught the
+    /// PTZ joystick's drag, so steering the camera panned the zoomed picture too.
+    private var pictureLayer: some View {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             VideoFrameView(
@@ -63,8 +90,6 @@ struct SingleMonitorView: View {
             .scaleEffect(effectiveScale)
             .offset(effectiveOffset)
             .ignoresSafeArea()
-
-            overlayLayer
         }
         .simultaneousGesture(
             MagnifyGesture()
@@ -101,24 +126,6 @@ struct SingleMonitorView: View {
                 steadyOffset = .zero
             }
         }
-        .navigationTitle(source?.name ?? "Monitor")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .onChange(of: viewModel.frames[viewModel.primarySourceID ?? ""]) {
-            if let id = viewModel.primarySourceID {
-                viewModel.updateHistogram(for: id)
-            }
-        }
-        .onChange(of: viewModel.isHistogramActive) {
-            if let id = viewModel.primarySourceID {
-                if viewModel.isHistogramActive {
-                    viewModel.updateHistogram(for: id)
-                } else {
-                    viewModel.histogramData.removeValue(forKey: id)
-                }
-            }
-        }
     }
 
     /// Everything that must stay put and stay legible while the picture zooms.
@@ -131,9 +138,30 @@ struct SingleMonitorView: View {
                     ProxyBadge()
                 }
                 Spacer()
+                if viewModel.isAudioMeterActive, let id = sourceID {
+                    AudioMeterView(levels: { viewModel.audioLevels(for: id) })
+                }
             }
 
             Spacer()
+
+            // Only for a sender that advertises PTZ. It is a control, so it hides with
+            // the chrome, and hiding it stops any move in progress (`onDisappear`).
+            if viewModel.isChromeVisible, let id = sourceID, viewModel.ptzCapableSources.contains(id) {
+                HStack {
+                    Spacer()
+                    PTZControlView(
+                        setPanTilt: { viewModel.setPanTilt(pan: $0, tilt: $1, for: id) },
+                        setZoom: { viewModel.setZoomSpeed($0, for: id) },
+                        send: { viewModel.sendPTZ($0, to: id) },
+                        stop: { viewModel.stopPTZ(for: id) }
+                    )
+                    // A new primary source is a new camera. Never hand it the old one's
+                    // half-finished gesture.
+                    .id(id)
+                }
+                Spacer()
+            }
 
             HStack(alignment: .bottom) {
                 if viewModel.isChromeVisible, let id = sourceID {

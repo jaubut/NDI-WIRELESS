@@ -56,6 +56,7 @@ import Synchronization
 /// MainActor, and this handle is read and closed from the detached capture loop.
 private nonisolated final class ReceiverHandle: @unchecked Sendable {
     let stats = FrameStatsAccumulator()
+    let audio = AudioLevelMeter()
 
     /// Pulled by the owning loop only, which is why it needs no lock: the loop has
     /// finished by the time `close()` runs.
@@ -250,6 +251,8 @@ final class RealNDIService: NDIService {
 
                     NDIlib_framesync_free_video(framesync, &videoFrame)
 
+                    Self.meterAudio(framesync: framesync, into: handle.audio)
+
                     // ~30fps capture rate
                     try? await Task.sleep(for: .milliseconds(33))
                 }
@@ -330,7 +333,67 @@ final class RealNDIService: NDIService {
         return merged ?? local
     }
 
+    // MARK: - Audio
+
+    func audioLevels(for source: NDISource) -> AudioLevels? {
+        receivers[source.id]?.audio.snapshot()
+    }
+
+    // MARK: - PTZ
+
+    /// The sender advertises PTZ in its capabilities metadata. Until that metadata has
+    /// arrived, this reads false, so the control appears a moment after connecting.
+    func isPTZSupported(_ source: NDISource) -> Bool {
+        receivers[source.id]?.withRecv { NDIlib_recv_ptz_is_supported($0) } ?? false
+    }
+
+    /// Runs under the same lock as `close()`, so a command can never reach a destroyed
+    /// receiver.
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool {
+        guard let handle = receivers[source.id] else { return false }
+        let command = command.clamped
+        return handle.withRecv { recv -> Bool in
+            switch command {
+            case .panTiltSpeed(let pan, let tilt):
+                return NDIlib_recv_ptz_pan_tilt_speed(recv, pan, tilt)
+            case .zoomSpeed(let speed):
+                return NDIlib_recv_ptz_zoom_speed(recv, speed)
+            case .recallPreset(let preset):
+                return NDIlib_recv_ptz_recall_preset(recv, Int32(preset), 1.0)
+            case .storePreset(let preset):
+                return NDIlib_recv_ptz_store_preset(recv, Int32(preset))
+            case .autoFocus:
+                return NDIlib_recv_ptz_auto_focus(recv)
+            }
+        } ?? false
+    }
+
     // MARK: - Private Helpers
+
+    /// Audio pulled per capture tick. 1600 samples is one 33 ms tick at 48 kHz. The frame
+    /// sync resamples to whatever is asked for, and nobody listens to this audio, so
+    /// the only cost of a mismatch is a few dropped or padded samples in the meter's
+    /// window.
+    private nonisolated static let audioSamplesPerTick: Int32 = 1600
+
+    /// Pull one block of audio at the source's native rate and channel count, and record
+    /// its peaks. Audio is metered only. Nothing is played back.
+    private nonisolated static func meterAudio(
+        framesync: NDIlib_framesync_instance_t,
+        into meter: AudioLevelMeter
+    ) {
+        var audioFrame = NDIlib_audio_frame_v2_t()
+        NDIlib_framesync_capture_audio(framesync, &audioFrame, 0, 0, audioSamplesPerTick)
+        if let data = audioFrame.p_data, audioFrame.no_channels > 0, audioFrame.no_samples > 0 {
+            meter.record(peaks: AudioLevelMeter.peaks(
+                planar: UnsafePointer(data),
+                channelStrideInBytes: Int(audioFrame.channel_stride_in_bytes),
+                channels: Int(audioFrame.no_channels),
+                samples: Int(audioFrame.no_samples)
+            ))
+        }
+        NDIlib_framesync_free_audio(framesync, &audioFrame)
+    }
 
     /// Drop bookkeeping for a receiver, but only if a newer one has not taken its slot
     /// (a bandwidth swap replaces the handle while the old stream is still terminating).

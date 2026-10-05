@@ -32,6 +32,10 @@ private nonisolated final class MockReceiver: Sendable {
 
     private let state = Mutex(State())
 
+    /// Fed a synthetic tone by the capture loop. Not reset by `reconnect`: a re-point
+    /// does not change what the sender is sending.
+    let audio = AudioLevelMeter()
+
     func attach(_ task: Task<Void, Never>) {
         state.withLock { (s: inout State) -> Void in s.task = task }
     }
@@ -80,6 +84,14 @@ final class MockNDIService: NDIService {
     private var activeReceivers: Set<String> = []
     private var receiverStates: [String: MockReceiver] = [:]
 
+    /// Ids whose mock camera claims PTZ. The multi-source mock gives it to Camera A only,
+    /// so the simulator shows both cases. The demo pattern is not a camera, so it has none.
+    private let ptzSourceIDs: Set<String>
+
+    /// Every PTZ command that reached a receiving source, clamped, in order. This is what
+    /// the tests read.
+    private(set) var sentPTZCommands: [(sourceID: String, command: PTZCommand)] = []
+
     /// When set, this is the whole of what the mock discovers and nothing else is ever
     /// yielded. Used for the built-in demo source in the shipping build, where a second
     /// invented camera would be a lie about what the app found on the network.
@@ -89,6 +101,7 @@ final class MockNDIService: NDIService {
     /// exercises the reconnect chip.
     init() {
         self.fixedSource = nil
+        self.ptzSourceIDs = ["obs-1"]
     }
 
     /// One source, and no scripted outage.
@@ -98,6 +111,13 @@ final class MockNDIService: NDIService {
     /// than as the resilience behaviour it demonstrates, so the glitch is off here.
     init(singleSource source: NDISource) {
         self.fixedSource = source
+        self.ptzSourceIDs = []
+    }
+
+    /// For tests that need PTZ on ids of their own.
+    init(ptzSourceIDs: Set<String>) {
+        self.fixedSource = nil
+        self.ptzSourceIDs = ptzSourceIDs
     }
 
     /// The scripted outage only belongs to the multi-source simulator mock.
@@ -196,6 +216,17 @@ final class MockNDIService: NDIService {
                         }
                     }
 
+                    // A slow stereo wobble between about -30 and -6 dBFS (NDI levels carry
+                    // 20 dB of headroom), so the simulator meters move. During an outage
+                    // they fall silent along with the picture.
+                    if !glitching {
+                        let phase = Double(tick) / 15
+                        receiver.audio.record(peaks: [
+                            Float(1.0 + 0.9 * sin(phase)),
+                            Float(1.0 + 0.9 * cos(phase * 0.7)),
+                        ].map { $0 * 2.5 })
+                    }
+
                     hue += 0.005
                     if hue > 1 { hue = 0 }
                     try? await Task.sleep(for: .milliseconds(Self.tickMilliseconds))
@@ -219,6 +250,23 @@ final class MockNDIService: NDIService {
     /// exactly like `NDIlib_recv_connect` on a live instance.
     func reconnect(_ source: NDISource) {
         receiverStates[source.id]?.reconnect()
+    }
+
+    func audioLevels(for source: NDISource) -> AudioLevels? {
+        receiverStates[source.id]?.audio.snapshot()
+    }
+
+    func isPTZSupported(_ source: NDISource) -> Bool {
+        receiverStates[source.id] != nil && ptzSourceIDs.contains(source.id)
+    }
+
+    /// Makes `sendPTZ` fail like a receiver caught mid-swap. For tests.
+    var dropsPTZ = false
+
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool {
+        guard !dropsPTZ, isPTZSupported(source) else { return false }
+        sentPTZCommands.append((source.id, command.clamped))
+        return true
     }
 
     func stopReceiving(from source: NDISource) {
