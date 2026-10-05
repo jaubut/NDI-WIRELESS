@@ -47,6 +47,10 @@ final class MonitorViewModel {
     // MARK: - Private
 
     private let service: NDIService
+    /// Where per-source bandwidth survives a relaunch. Injected so tests never touch
+    /// the app's real defaults.
+    private let bandwidthStore: UserDefaults
+    static let bandwidthStoreKey = "bandwidthBySource"
     /// Owned here, not by a service: the transport stays transport, and the mock does
     /// not have to reimplement the recovery policy to be useful.
     private let pathMonitor: NetworkPathMonitor
@@ -70,9 +74,17 @@ final class MonitorViewModel {
     var rebuildAfterSeconds: Double = 6
     var rediscoverAfterSeconds: Double = 20
 
-    init(service: NDIService, pathMonitor: NetworkPathMonitor = NetworkPathMonitor()) {
+    init(
+        service: NDIService,
+        pathMonitor: NetworkPathMonitor = NetworkPathMonitor(),
+        bandwidthStore: UserDefaults = .standard
+    ) {
         self.service = service
         self.pathMonitor = pathMonitor
+        self.bandwidthStore = bandwidthStore
+        // Unknown raw values (a mode renamed in a later build) are dropped, not crashed on.
+        let saved = bandwidthStore.dictionary(forKey: Self.bandwidthStoreKey) as? [String: String] ?? [:]
+        self.bandwidth = saved.compactMapValues(NDIBandwidthMode.init(rawValue:))
     }
 
     /// Ids whose receive task is still running and still writing `frames`.
@@ -278,6 +290,7 @@ final class MonitorViewModel {
     func setBandwidth(_ mode: NDIBandwidthMode, for sourceID: String) {
         guard bandwidth[sourceID] != mode else { return }
         bandwidth[sourceID] = mode
+        bandwidthStore.set(bandwidth.mapValues(\.rawValue), forKey: Self.bandwidthStoreKey)
 
         guard selectedSources.contains(sourceID), let source = sourceIndex[sourceID] else { return }
         resubscribe(source: source, bandwidth: mode)

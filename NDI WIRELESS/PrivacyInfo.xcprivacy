@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
 	<!-- TLS Viewer receives video over the local network and shows it. It has no
-	     account, no analytics, no network calls off the LAN, and writes nothing to
-	     disk, so nothing is collected and nothing is tracked. -->
+	     account, no analytics, no network calls off the LAN, and only stores its own settings on the device,
+	     so nothing is collected and nothing is tracked. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
@@ -22,6 +22,16 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>35F9.1</string>
+			</array>
+		</dict>
+		<!-- MonitorViewModel saves the bandwidth mode chosen for each source in
+		     UserDefaults so it survives a relaunch. Only this app reads it back. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
 			</array>
 		</dict>
 	</array>
