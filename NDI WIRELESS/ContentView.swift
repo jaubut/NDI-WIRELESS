@@ -133,13 +133,12 @@ struct ContentView: View {
     /// 16:9 picture is mostly black. Asked for once the scene is connected, and only when
     /// the launch argument is there — a real user's rotation is their own business.
     ///
-    /// Honoured on iPhone. **Not** on iPad, which refuses with `UISceneErrorDomain` 101,
-    /// "the current windowing mode does not allow for programmatic changes to interface
-    /// orientation": the app declares multiple-scene support, so iPadOS treats it as
-    /// fully resizable and keeps orientation under the user's control. iPad captures have
-    /// to rotate the simulated device instead, which is what XCUITest's
-    /// `XCUIDevice.orientation` does. Left in place because it is the right call on the
-    /// phone, where the same screenshots are needed.
+    /// The app is single-scene (`UIApplicationSupportsMultipleScenes` = false in
+    /// `NDI-WIRELESS-Info.plist`): while it declared multiple scenes, iPadOS refused this
+    /// with `UISceneErrorDomain` 101 ("the current windowing mode does not allow for
+    /// programmatic changes to interface orientation"). If an iPad in Stage Manager /
+    /// windowed mode still refuses, rotate the simulated device instead
+    /// (`XCUIDevice.orientation`).
     private func requestLandscapeForScreenshots() {
         #if canImport(UIKit)
         guard MonitorViewModel.isLaunchedForScreenshots else { return }
