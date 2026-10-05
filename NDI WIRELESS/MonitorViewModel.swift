@@ -38,6 +38,9 @@ final class MonitorViewModel {
     var layoutMode: LayoutMode = .multi
     var primarySourceID: String?
     var isDiscovering = false
+    /// The OS is refusing local network access, so an empty list means "can't look", not
+    /// "nothing there". Kept as last reported across discovery restarts to avoid flicker.
+    var isLocalNetworkDenied = false
     var isChromeVisible = true
     var activeTools: Set<MonitorTool> = []
 
@@ -56,6 +59,7 @@ final class MonitorViewModel {
     private var statsTask: Task<Void, Never>?
     private var pathMonitorTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
+    private var localNetworkTask: Task<Void, Never>?
 
     /// A feed with no new frame for this long is reported as reconnecting.
     static let starvedAfterMilliseconds: Double = 2000
@@ -83,6 +87,7 @@ final class MonitorViewModel {
 
     func startDiscovery() {
         startPathMonitoring()
+        startLocalNetworkWatch()
         guard !isDiscovering else { return }
         isDiscovering = true
         discoveryTask = Task { @MainActor [weak self] in
@@ -94,6 +99,22 @@ final class MonitorViewModel {
                 }
                 self.applyScreenshotModeIfNeeded()
             }
+        }
+    }
+
+    /// Idempotent for the same reason as `startPathMonitoring()`: recovery restarts
+    /// discovery and must not stack a second browser.
+    private func startLocalNetworkWatch() {
+        guard localNetworkTask == nil else { return }
+        localNetworkTask = Task { @MainActor [weak self] in
+            for await denied in LocalNetworkAccess.deniedUpdates() {
+                guard let self else { return }
+                self.isLocalNetworkDenied = denied
+            }
+            // Stream ended on its own (browser failed): free the slot so the next
+            // `startDiscovery()` recreates the watch. Retry is bounded by discovery restarts.
+            guard !Task.isCancelled, let self else { return }
+            self.localNetworkTask = nil
         }
     }
 
@@ -522,6 +543,8 @@ final class MonitorViewModel {
         primarySourceID = nil
         stopStatsPolling()
         stopPathMonitoring()
+        localNetworkTask?.cancel()
+        localNetworkTask = nil
         stopDiscovery()
         service.stopAll()
     }
