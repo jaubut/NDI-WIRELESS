@@ -260,9 +260,13 @@ final class MockNDIService: NDIService {
         receiverStates[source.id] != nil && ptzSourceIDs.contains(source.id)
     }
 
-    func sendPTZ(_ command: PTZCommand, to source: NDISource) {
-        guard isPTZSupported(source) else { return }
+    /// Makes `sendPTZ` fail like a receiver caught mid-swap. For tests.
+    var dropsPTZ = false
+
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool {
+        guard !dropsPTZ, isPTZSupported(source) else { return false }
         sentPTZCommands.append((source.id, command.clamped))
+        return true
     }
 
     func stopReceiving(from source: NDISource) {

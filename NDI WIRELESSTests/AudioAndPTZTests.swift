@@ -124,6 +124,27 @@ struct PTZTests {
         viewModel.stopAll()
     }
 
+    @Test func aDroppedStopIsRetriedUntilItLands() async {
+        let mock = MockNDIService(ptzSourceIDs: [camera.id])
+        let viewModel = MonitorViewModel(service: mock)
+        viewModel.startReceiving(camera)
+
+        viewModel.setPanTilt(pan: 0.5, tilt: 0, for: camera.id)
+        mock.dropsPTZ = true
+        viewModel.stopPTZ(for: camera.id)  // lost, e.g. mid bandwidth swap
+        mock.dropsPTZ = false
+
+        // Nobody calls stop again: the 1 Hz poll must deliver it on its own.
+        let stop = PTZCommand.panTiltSpeed(pan: 0, tilt: 0)
+        let deadline = Date().addingTimeInterval(5)
+        while mock.sentPTZCommands.last?.command != stop, Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(mock.sentPTZCommands.map { $0.command } == [.panTiltSpeed(pan: PTZCommand.quantized(0.5), tilt: 0), stop])
+
+        viewModel.stopAll()
+    }
+
     @Test func nothingReachesASourceThatIsNotSelected() {
         let mock = MockNDIService(ptzSourceIDs: [camera.id])
         let viewModel = MonitorViewModel(service: mock)

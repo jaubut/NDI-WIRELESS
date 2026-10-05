@@ -28,9 +28,9 @@
 
 **Known ceilings (deliberate)**
 - The frame sync returns silence when a sender has no audio, so "no audio track" reads as a meter at the floor. It is not shown as an absent meter.
-- When zoomed into the picture (`scale > 1`), the single view's pan drag is a `simultaneousGesture` on the whole ZStack, so the joystick also pans the picture. Check on the iPad, and move the gestures onto the frame if it bites.
+- Picture zoom/pan gestures sit on the picture layer only (`SingleMonitorView.pictureLayer`), so the PTZ joystick no longer pans a zoomed picture. Check on the iPad that pinch/drag on empty overlay space still reaches the picture.
 - Peak only: no RMS/LUFS, no grid PTZ, no preset names. Add these when someone asks.
-- `MonitorViewModel.swift` is at 592 lines, against the 600 cap. The next feature there splits it.
+- PTZ logic split into `MonitorViewModel+PTZ.swift` (600-line cap). `sendPTZ` returns the SDK's Bool; a continuous move is recorded for dedupe only once delivered, and an undelivered stop is retried by the 1 Hz poll until it lands.
 
 **Follow-ups**
 - **Tally (separate task, blocked on the Mac sender).** It needs the Mac side to publish program/preview state. The viewer would *send* `NDIlib_recv_set_tally`, or *read* tally metadata via `NDIlib_framesync`/`recv_capture_v3` metadata frames, depending on which direction the Mac implements. Scope it once the Mac metadata exists.

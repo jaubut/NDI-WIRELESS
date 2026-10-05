@@ -349,10 +349,10 @@ final class RealNDIService: NDIService {
 
     /// Runs under the same lock as `close()`, so a command can never reach a destroyed
     /// receiver.
-    func sendPTZ(_ command: PTZCommand, to source: NDISource) {
-        guard let handle = receivers[source.id] else { return }
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool {
+        guard let handle = receivers[source.id] else { return false }
         let command = command.clamped
-        _ = handle.withRecv { recv -> Bool in
+        return handle.withRecv { recv -> Bool in
             switch command {
             case .panTiltSpeed(let pan, let tilt):
                 return NDIlib_recv_ptz_pan_tilt_speed(recv, pan, tilt)
@@ -365,7 +365,7 @@ final class RealNDIService: NDIService {
             case .autoFocus:
                 return NDIlib_recv_ptz_auto_focus(recv)
             }
-        }
+        } ?? false
     }
 
     // MARK: - Private Helpers

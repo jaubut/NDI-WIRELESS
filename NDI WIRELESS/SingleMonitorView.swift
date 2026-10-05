@@ -50,6 +50,33 @@ struct SingleMonitorView: View {
 
     var body: some View {
         ZStack {
+            pictureLayer
+            overlayLayer
+        }
+        .navigationTitle(source?.name ?? "Monitor")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .onChange(of: viewModel.frames[viewModel.primarySourceID ?? ""]) {
+            if let id = viewModel.primarySourceID {
+                viewModel.updateHistogram(for: id)
+            }
+        }
+        .onChange(of: viewModel.isHistogramActive) {
+            if let id = viewModel.primarySourceID {
+                if viewModel.isHistogramActive {
+                    viewModel.updateHistogram(for: id)
+                } else {
+                    viewModel.histogramData.removeValue(forKey: id)
+                }
+            }
+        }
+    }
+
+    /// Zoom and pan live on the picture only. On the outer stack they also caught the
+    /// PTZ joystick's drag, so steering the camera panned the zoomed picture too.
+    private var pictureLayer: some View {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             VideoFrameView(
@@ -63,8 +90,6 @@ struct SingleMonitorView: View {
             .scaleEffect(effectiveScale)
             .offset(effectiveOffset)
             .ignoresSafeArea()
-
-            overlayLayer
         }
         .simultaneousGesture(
             MagnifyGesture()
@@ -99,24 +124,6 @@ struct SingleMonitorView: View {
             withAnimation(.easeOut(duration: 0.2)) {
                 steadyScale = 1.0
                 steadyOffset = .zero
-            }
-        }
-        .navigationTitle(source?.name ?? "Monitor")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .onChange(of: viewModel.frames[viewModel.primarySourceID ?? ""]) {
-            if let id = viewModel.primarySourceID {
-                viewModel.updateHistogram(for: id)
-            }
-        }
-        .onChange(of: viewModel.isHistogramActive) {
-            if let id = viewModel.primarySourceID {
-                if viewModel.isHistogramActive {
-                    viewModel.updateHistogram(for: id)
-                } else {
-                    viewModel.histogramData.removeValue(forKey: id)
-                }
             }
         }
     }

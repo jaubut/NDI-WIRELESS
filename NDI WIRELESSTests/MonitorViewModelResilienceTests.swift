@@ -116,7 +116,7 @@ private final class SpyNDIService: NDIService {
     // Not exercised here; present so the double conforms.
     func audioLevels(for source: NDISource) -> AudioLevels? { nil }
     func isPTZSupported(_ source: NDISource) -> Bool { false }
-    func sendPTZ(_ command: PTZCommand, to source: NDISource) {}
+    func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool { false }
 
     private nonisolated static func onePixel() -> CGImage? {
         let context = CGContext(

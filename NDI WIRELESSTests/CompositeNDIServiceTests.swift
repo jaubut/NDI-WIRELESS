@@ -75,7 +75,7 @@ private final class StubNDIService: NDIService {
     // Not exercised here; present so the double conforms.
     func audioLevels(for source: NDISource) -> AudioLevels? { nil }
     func isPTZSupported(_ source: NDISource) -> Bool { false }
-    func sendPTZ(_ command: PTZCommand, to source: NDISource) {}
+    func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool { false }
 }
 
 /// A main-actor box for what the merged stream last produced.

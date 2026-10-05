@@ -45,7 +45,7 @@ final class MonitorViewModel {
 
     // MARK: - Private
 
-    private let service: NDIService
+    let service: NDIService
     /// Owned here, not by a service: the transport stays transport, and the mock does
     /// not have to reimplement the recovery policy to be useful.
     private let pathMonitor: NetworkPathMonitor
@@ -59,8 +59,11 @@ final class MonitorViewModel {
     private var pathMonitorTask: Task<Void, Never>?
     private var recoveryTask: Task<Void, Never>?
     /// Last continuous PTZ move sent per source, for dedupe. No view renders it.
-    @ObservationIgnored private var lastPanTilt: [String: PTZCommand] = [:]
-    @ObservationIgnored private var lastZoom: [String: PTZCommand] = [:]
+    @ObservationIgnored var lastPanTilt: [String: PTZCommand] = [:]
+    @ObservationIgnored var lastZoom: [String: PTZCommand] = [:]
+    /// Stops the SDK refused (receiver mid-swap or closed), per axis. The 1 Hz poll retries.
+    @ObservationIgnored var pendingPanTiltStops: Set<String> = []
+    @ObservationIgnored var pendingZoomStops: Set<String> = []
 
     /// A feed with no new frame for this long is reported as reconnecting.
     static let starvedAfterMilliseconds: Double = 2000
@@ -244,6 +247,8 @@ final class MonitorViewModel {
         ptzCapableSources.remove(source.id)
         lastPanTilt.removeValue(forKey: source.id)
         lastZoom.removeValue(forKey: source.id)
+        pendingPanTiltStops.remove(source.id)
+        pendingZoomStops.remove(source.id)
 
         // Cancels the transport's loop and drops its bookkeeping; the loop destroys its
         // own C instances as it unwinds. Nothing here destroys anything.
@@ -316,6 +321,9 @@ final class MonitorViewModel {
             sourceIndex[sourceID].map { service.isPTZSupported($0) } ?? false
         })
         if capable != ptzCapableSources { ptzCapableSources = capable }
+        // Copied first: each retry mutates the set it came from.
+        for id in Array(pendingPanTiltStops) { setPanTilt(pan: 0, tilt: 0, for: id) }
+        for id in Array(pendingZoomStops) { setZoomSpeed(0, for: id) }
 
         for sourceID in selectedSources {
             guard let source = sourceIndex[sourceID] else { continue }
@@ -364,41 +372,6 @@ final class MonitorViewModel {
     /// For the meter view, which pulls at its own rate. Never stored in observed state.
     func audioLevels(for sourceID: String) -> AudioLevels? {
         sourceIndex[sourceID].flatMap { service.audioLevels(for: $0) }
-    }
-
-    // MARK: - PTZ
-
-    /// Continuous pan and tilt. Send (0, 0) to stop.
-    func setPanTilt(pan: Float, tilt: Float, for sourceID: String) {
-        let command = PTZCommand.panTiltSpeed(pan: PTZCommand.quantized(pan), tilt: PTZCommand.quantized(tilt))
-        guard lastPanTilt[sourceID] != command else { return }
-        lastPanTilt[sourceID] = command
-        sendPTZ(command, to: sourceID)
-    }
-
-    /// Continuous zoom. Send 0 to stop.
-    func setZoomSpeed(_ speed: Float, for sourceID: String) {
-        let command = PTZCommand.zoomSpeed(PTZCommand.quantized(speed))
-        guard lastZoom[sourceID] != command else { return }
-        lastZoom[sourceID] = command
-        sendPTZ(command, to: sourceID)
-    }
-
-    /// Stop every continuous move. The control calls this whenever it goes away.
-    func stopPTZ(for sourceID: String) {
-        setPanTilt(pan: 0, tilt: 0, for: sourceID)
-        setZoomSpeed(0, for: sourceID)
-    }
-
-    /// A deselect must never leave a camera moving. Undriven sources get no PTZ traffic.
-    private func stopPTZIfMoved(_ sourceID: String) {
-        if lastPanTilt[sourceID] != nil || lastZoom[sourceID] != nil { stopPTZ(for: sourceID) }
-    }
-
-    /// One-shot commands (presets, AF). Continuous moves use the deduping setters.
-    func sendPTZ(_ command: PTZCommand, to sourceID: String) {
-        guard selectedSources.contains(sourceID), let source = sourceIndex[sourceID] else { return }
-        service.sendPTZ(command, to: source)
     }
 
     // MARK: - Network path
@@ -583,6 +556,8 @@ final class MonitorViewModel {
         ptzCapableSources.removeAll()
         lastPanTilt.removeAll()
         lastZoom.removeAll()
+        pendingPanTiltStops.removeAll()
+        pendingZoomStops.removeAll()
         primarySourceID = nil
         stopStatsPolling()
         stopPathMonitoring()

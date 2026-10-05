@@ -116,6 +116,6 @@ protocol NDIService: AnyObject {
     func isPTZSupported(_ source: NDISource) -> Bool
 
     /// Send one PTZ instruction to the camera behind a source. When nothing is receiving
-    /// the source, this does nothing.
-    func sendPTZ(_ command: PTZCommand, to source: NDISource)
+    /// the source, this does nothing. Returns whether the command reached the SDK.
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool
 }

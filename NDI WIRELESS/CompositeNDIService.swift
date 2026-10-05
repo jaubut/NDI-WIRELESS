@@ -140,7 +140,7 @@ final class CompositeNDIService: NDIService {
         service(for: source.id).isPTZSupported(source)
     }
 
-    func sendPTZ(_ command: PTZCommand, to source: NDISource) {
+    @discardableResult func sendPTZ(_ command: PTZCommand, to source: NDISource) -> Bool {
         service(for: source.id).sendPTZ(command, to: source)
     }
 
