@@ -10,8 +10,13 @@ import SwiftUI
 struct SourceDiscoveryView: View {
     var viewModel: MonitorViewModel
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         List {
+            if viewModel.isLocalNetworkDenied {
+                localNetworkCoaching
+            }
             Section {
                 ForEach(viewModel.discoveredSources) { source in
                     row(for: source)
@@ -19,22 +24,53 @@ struct SourceDiscoveryView: View {
             } footer: {
                 // An empty network is the normal state on a desk, not a fault. Say what
                 // the app looks for, and point at the source that is always there.
-                Text(
-                    """
-                    No sources? TLS Viewer discovers NDI® senders on the same Wi-Fi. \
-                    Use the demo source to explore the tools.
-                    """
-                )
+                if !viewModel.isLocalNetworkDenied {
+                    Text(
+                        """
+                        No sources? TLS Viewer discovers NDI® senders on the same Wi-Fi. \
+                        Use the demo source to explore the tools.
+                        """
+                    )
+                }
             }
         }
         .navigationTitle("NDI Sources")
         .overlay {
-            if viewModel.discoveredSources.isEmpty {
+            if viewModel.discoveredSources.isEmpty && !viewModel.isLocalNetworkDenied {
                 ContentUnavailableView(
                     "Searching...",
                     systemImage: "antenna.radiowaves.left.and.right",
                     description: Text("Looking for NDI sources on your network")
                 )
+            }
+        }
+    }
+
+    /// Permission denied otherwise looks exactly like an empty network: say which it is,
+    /// and take the user straight to the switch.
+    private var localNetworkCoaching: some View {
+        Section {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Local Network Access Is Off")
+                        .font(.headline)
+                    Text(
+                        """
+                        TLS Viewer can't look for NDI® senders until you turn on \
+                        Local Network for it in Settings.
+                        """
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: "wifi.exclamationmark")
+                    .foregroundStyle(.orange)
+            }
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
             }
         }
     }
